@@ -80,3 +80,11 @@ __recovery/
 
 # Boss dependency manager vendor folder https://github.com/HashLoad/boss
 modules/
+
+# NitroPascal
+bin/res/*
+!bin/res/.gitkeep
+bin/projects/*
+!bin/projects/.gitkeep
+checkpoint.zip
+_checkpoint.cmd
