@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 
 ### Changed
+- **Update LICENSE** (2025-10-05 – jarroddavis68)
+
 - **Repo Update** (2025-10-05 – jarroddavis68)
   - Setting up repo
 
