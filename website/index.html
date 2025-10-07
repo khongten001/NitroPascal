@@ -378,6 +378,66 @@
             color: var(--text-secondary);
         }
 
+        /* Built With Section */
+        .built-with {
+            background: var(--dark-bg);
+        }
+
+        .dependencies-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .dependency-card {
+            background: var(--dark-card);
+            border-radius: 15px;
+            padding: 2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .dependency-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary-cyan);
+            box-shadow: 0 10px 30px rgba(0, 212, 255, 0.2);
+        }
+
+        .dependency-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+
+        .dependency-card h3 {
+            color: var(--primary-cyan);
+            margin-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+
+        .dependency-card p {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            flex-grow: 1;
+            margin-bottom: 1.5rem;
+        }
+
+        .dependency-link {
+            color: var(--accent-green);
+            text-decoration: none;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: color 0.3s;
+        }
+
+        .dependency-link:hover {
+            color: var(--primary-cyan);
+        }
+
         /* Get Started */
         .get-started {
             background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 50%, #16213e 100%);
@@ -438,6 +498,29 @@
             50% { transform: translateY(-20px); }
         }
 
+        /* Video Overview Section */
+        .video-overview {
+            background: var(--dark-section);
+            padding: 6rem 0;
+        }
+
+        .video-container {
+            max-width: 900px;
+            margin: 0 auto;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 212, 255, 0.3);
+            border: 2px solid rgba(0, 212, 255, 0.3);
+            background: var(--dark-card);
+        }
+
+        .overview-video {
+            width: 100%;
+            height: auto;
+            display: block;
+            background: #000;
+        }
+
         /* Responsive */
         @media (max-width: 768px) {
             .hero h1 {
@@ -466,6 +549,11 @@
 
             .pipeline-arrow {
                 transform: rotate(90deg);
+            }
+
+            .video-container {
+                border-radius: 10px;
+                border-width: 1px;
             }
         }
 
@@ -541,6 +629,26 @@
                     View on GitHub
                 </a>
                 <a href="#special" class="btn btn-secondary">Learn More</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Video Overview Section -->
+    <section class="video-overview">
+        <div class="container">
+            <h2>💡 Introduction to NitroPascal</h2>
+            <p class="section-subtitle">
+                Discover what NitroPascal is, why it was created, and what makes it unique
+            </p>
+            <div class="video-container">
+                <video 
+                    class="overview-video" 
+                    controls 
+                    preload="metadata"
+                    poster="media/nitropascal.png">
+                    <source src="media/nitropascal.mp4" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
             </div>
         </div>
     </section>
@@ -645,17 +753,22 @@
             </p>
             <div class="code-comparison">
                 <div class="code-block">
-                    <div class="code-header">Object Pascal Source</div>
+                    <div class="code-header">NitroPascal Source</div>
                     <div class="code-content">
+<span class="keyword">$optimize</span> <span class="string">"debug"</span>
+
 <span class="keyword">program</span> HelloWorld;
 
-<span class="keyword">procedure</span> <span class="function">Greet</span>(<span class="keyword">const</span> AName: <span class="type">string</span>);
+<span class="keyword">extern</span> &lt;stdio.h&gt; <span class="keyword">routine</span> <span class="function">printf</span>(format: <span class="type">^char</span>; ...): <span class="type">int</span>;
+
+<span class="keyword">routine</span> <span class="function">Greet</span>(name: <span class="type">^char</span>);
 <span class="keyword">begin</span>
-  WriteLn(<span class="string">'Hello, '</span> + AName + <span class="string">'!'</span>);
+  <span class="function">printf</span>(<span class="string">"Hello, %s!\n"</span>, name);
 <span class="keyword">end</span>;
 
 <span class="keyword">begin</span>
-  <span class="function">Greet</span>(<span class="string">'NitroPascal'</span>);
+  <span class="function">Greet</span>(<span class="string">"NitroPascal"</span>);
+  ExitCode := <span class="number">0</span>;
 <span class="keyword">end</span>.
                     </div>
                 </div>
@@ -663,13 +776,10 @@
                     <div class="code-header">Generated C++ Code</div>
                     <div class="code-content">
 <span class="comment">// Optimized C++ output</span>
-<span class="keyword">#include</span> <span class="string">&lt;iostream&gt;</span>
-<span class="keyword">#include</span> <span class="string">&lt;string&gt;</span>
+<span class="keyword">#include</span> <span class="string">&lt;stdio.h&gt;</span>
 
-<span class="keyword">void</span> <span class="function">Greet</span>(<span class="keyword">const</span> <span class="type">std::string</span>&amp; name) {
-  <span class="type">std::cout</span> &lt;&lt; <span class="string">"Hello, "</span> 
-            &lt;&lt; name 
-            &lt;&lt; <span class="string">"!\n"</span>;
+<span class="keyword">void</span> <span class="function">Greet</span>(<span class="keyword">const</span> <span class="type">char</span>* name) {
+  <span class="function">printf</span>(<span class="string">"Hello, %s!\n"</span>, name);
 }
 
 <span class="keyword">int</span> <span class="function">main</span>() {
@@ -705,6 +815,35 @@
                 <div class="why-item">
                     <h3>🛠️ Modern Tooling</h3>
                     <p>Built on Zig's excellent build system for fast, reliable, cross-platform development.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Built With Section -->
+    <section class="built-with">
+        <div class="container">
+            <h2>🔧 Built With</h2>
+            <p class="section-subtitle">
+                Standing on the shoulders of giants
+            </p>
+            <div class="dependencies-grid">
+
+                <div class="dependency-card">
+                    <div class="dependency-icon">⚡</div>
+                    <h3>LLVM</h3>
+                    <p>The LLVM Compiler Infrastructure - modular and reusable compiler and toolchain technologies powering world-class optimization.</p>
+                    <a href="https://github.com/llvm/llvm-project" class="dependency-link" target="_blank">
+                        View on GitHub →
+                    </a>
+                </div>
+                <div class="dependency-card">
+                    <div class="dependency-icon">🔨</div>
+                    <h3>Zig</h3>
+                    <p>A general-purpose programming language and toolchain for maintaining robust, optimal, and reusable software.</p>
+                    <a href="https://github.com/ziglang/zig" class="dependency-link" target="_blank">
+                        View on GitHub →
+                    </a>
                 </div>
             </div>
         </div>

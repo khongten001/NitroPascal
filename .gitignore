@@ -88,3 +88,7 @@ bin/projects/*
 !bin/projects/.gitkeep
 checkpoint.zip
 _checkpoint.cmd
+bin/run_unittests.cmd
+bin/results.txt
+_distro.cmd
+pack.yml

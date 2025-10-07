@@ -6,7 +6,7 @@
 
 **Modern Pascal • C Performance**
 
-*Write elegant Object Pascal, compile to blazing-fast native code*
+*Write elegant NitroPascal, compile to blazing-fast native code*
 
 [Website](https://nitropascal.org) • [Documentation](#-documentation) • [Examples](#-quick-example) • [Contributing](#-contributing)
 
@@ -36,7 +36,7 @@ NitroPascal is a next-generation Pascal implementation that bridges the elegance
 
 ## 🔥 What Makes It Special?
 
-NitroPascal takes a revolutionary approach to achieving C-level performance: **transpilation**. Instead of interpreting or compiling directly to bytecode, NitroPascal transpiles modern Object Pascal code into highly optimized, idiomatic C++. This intermediate C++ representation is then compiled using **Zig as a drop-in C++ compiler**, with the entire build orchestrated through **build.zig**, unlocking:
+NitroPascal takes a revolutionary approach to achieving C-level performance: **transpilation**. Instead of interpreting or compiling directly to bytecode, NitroPascal transpiles modern NitroPascal code into highly optimized, idiomatic C++. This intermediate C++ representation is then compiled using **Zig as a drop-in C++ compiler**, with the entire build orchestrated through **build.zig**, unlocking:
 
 - 🎯 **Multi-Target Compilation**: Generate native binaries for Windows, Linux, macOS, and beyond
 - ⚡ **Aggressive Optimization**: Leverage decades of C++ compiler optimization research through Zig's LLVM backend
@@ -52,13 +52,13 @@ NitroPascal's compilation pipeline transforms your Pascal code through multiple 
 
 ```
 ┌─────────────────┐
-│  Object Pascal  │  Write clean, modern Pascal code
+│  NitroPascal    │  Write clean, modern Pascal code
 │     Source      │
 └────────┬────────┘
          │
          ▼
 ┌─────────────────┐
-│  NitroPascal    │  Parse and analyze with DelphiAST
+│  NitroPascal    │  Parse and analyze with custom parser
 │   Transpiler    │
 └────────┬────────┘
          │
@@ -87,22 +87,27 @@ See how elegant Pascal code transforms into optimized C++:
 
 <table>
 <tr>
-<th>Object Pascal Source</th>
+<th>NitroPascal Source</th>
 <th>Generated C++ Code</th>
 </tr>
 <tr>
 <td>
 
 ```pascal
+$optimize "debug"
+
 program HelloWorld;
 
-procedure Greet(const AName: string);
+extern <stdio.h> routine printf(format: ^char; ...): int;
+
+routine Greet(name: ^char);
 begin
-  WriteLn('Hello, ' + AName + '!');
+  printf("Hello, %s!\n", name);
 end;
 
 begin
-  Greet('NitroPascal');
+  Greet("NitroPascal");
+  ExitCode := 0;
 end.
 ```
 
@@ -111,13 +116,10 @@ end.
 
 ```cpp
 // Optimized C++ output
-#include <iostream>
-#include <string>
+#include <stdio.h>
 
-void Greet(const std::string& name) {
-  std::cout << "Hello, " 
-            << name 
-            << "!\n";
+void Greet(const char* name) {
+  printf("Hello, %s!\n", name);
 }
 
 int main() {
@@ -143,7 +145,7 @@ Pascal has always been celebrated for its clarity and strong typing, making it a
 
 ### Language & Syntax
 - 🎨 **Clean, expressive syntax** that doesn't compromise on power
-- 📝 **Modern Object Pascal** with contemporary language features
+- 📝 **Modern Pascal syntax** with contemporary language features
 - 🔒 **Memory safety** through strong typing without garbage collection overhead
 
 ### Performance & Optimization
@@ -205,7 +207,6 @@ This means you can use NitroPascal to build both open-source and proprietary app
 
 NitroPascal builds upon excellent open-source projects:
 
-- **[DelphiAST](https://github.com/RomanYankovsky/DelphiAST)** - Pascal AST parser
 - **[LLVM](https://github.com/llvm/llvm-project)** - Compiler infrastructure
 - **[Zig](https://github.com/ziglang/zig)** - Programming language and toolchain
 
