@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Repo Update** (2025-10-07 – jarroddavis68)
+  - Initial commit
+
+- **Repo Update** (2025-10-07 – jarroddavis68)
   - update documentation
 
 - **Repo Update** (2025-10-05 – jarroddavis68)
