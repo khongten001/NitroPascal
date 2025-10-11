@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Repo Update** (2025-10-11 – jarroddavis68)
+  - Fixed links in README and on website
+
+
+## [0.1.0] - 2025-10-07
+
 ### Added
 - **Create FUNDING.yml** (2025-07-27 – Jarrod Davis)
 
