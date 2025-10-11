@@ -753,22 +753,28 @@
             </p>
             <div class="code-comparison">
                 <div class="code-block">
-                    <div class="code-header">NitroPascal Source</div>
+                    <div class="code-header">Object Pascal Source</div>
                     <div class="code-content">
-<span class="keyword">$optimize</span> <span class="string">"debug"</span>
-
 <span class="keyword">program</span> HelloWorld;
 
-<span class="keyword">extern</span> &lt;stdio.h&gt; <span class="keyword">routine</span> <span class="function">printf</span>(format: <span class="type">^char</span>; ...): <span class="type">int</span>;
+<span class="keyword">type</span>
+  <span class="type">TPoint</span> = <span class="keyword">record</span>
+    X: <span class="type">Integer</span>;
+    Y: <span class="type">Integer</span>;
+  <span class="keyword">end</span>;
 
-<span class="keyword">routine</span> <span class="function">Greet</span>(name: <span class="type">^char</span>);
+<span class="keyword">procedure</span> <span class="function">PrintPoint</span>(<span class="keyword">const</span> P: <span class="type">TPoint</span>);
 <span class="keyword">begin</span>
-  <span class="function">printf</span>(<span class="string">"Hello, %s!\n"</span>, name);
+  <span class="function">WriteLn</span>(<span class="string">'Point('</span>, P.X, <span class="string">', '</span>, P.Y, <span class="string">')'</span>);
 <span class="keyword">end</span>;
 
+<span class="keyword">var</span>
+  Point: <span class="type">TPoint</span>;
 <span class="keyword">begin</span>
-  <span class="function">Greet</span>(<span class="string">"NitroPascal"</span>);
-  ExitCode := <span class="number">0</span>;
+  Point.X := <span class="number">10</span>;
+  Point.Y := <span class="number">20</span>;
+  <span class="function">PrintPoint</span>(Point);
+  <span class="function">WriteLn</span>(<span class="string">'Hello from NitroPascal!'</span>);
 <span class="keyword">end</span>.
                     </div>
                 </div>
@@ -776,14 +782,26 @@
                     <div class="code-header">Generated C++ Code</div>
                     <div class="code-content">
 <span class="comment">// Optimized C++ output</span>
-<span class="keyword">#include</span> <span class="string">&lt;stdio.h&gt;</span>
+<span class="keyword">#include</span> <span class="string">&lt;iostream&gt;</span>
 
-<span class="keyword">void</span> <span class="function">Greet</span>(<span class="keyword">const</span> <span class="type">char</span>* name) {
-  <span class="function">printf</span>(<span class="string">"Hello, %s!\n"</span>, name);
+<span class="keyword">struct</span> <span class="type">TPoint</span> {
+  <span class="type">int32_t</span> X;
+  <span class="type">int32_t</span> Y;
+};
+
+<span class="keyword">void</span> <span class="function">PrintPoint</span>(<span class="keyword">const</span> <span class="type">TPoint</span>&amp; P) {
+  <span class="type">std::wcout</span> &lt;&lt; <span class="string">L"Point("</span> &lt;&lt; P.X
+             &lt;&lt; <span class="string">L", "</span> &lt;&lt; P.Y &lt;&lt; <span class="string">L")"</span>
+             &lt;&lt; <span class="type">std::endl</span>;
 }
 
 <span class="keyword">int</span> <span class="function">main</span>() {
-  <span class="function">Greet</span>(<span class="string">"NitroPascal"</span>);
+  <span class="type">TPoint</span> Point;
+  Point.X = <span class="number">10</span>;
+  Point.Y = <span class="number">20</span>;
+  <span class="function">PrintPoint</span>(Point);
+  <span class="type">std::wcout</span> &lt;&lt; <span class="string">L"Hello from NitroPascal!"</span>
+             &lt;&lt; <span class="type">std::endl</span>;
   <span class="keyword">return</span> <span class="number">0</span>;
 }
                     </div>
@@ -828,7 +846,14 @@
                 Standing on the shoulders of giants
             </p>
             <div class="dependencies-grid">
-
+                <div class="dependency-card">
+                    <div class="dependency-icon">🌳</div>
+                    <h3>DelphiAST</h3>
+                    <p>Abstract Syntax Tree builder for Delphi - provides robust Pascal parsing capabilities that power NitroPascal's source code analysis.</p>
+                    <a href="https://github.com/RomanYankovsky/DelphiAST" class="dependency-link" target="_blank">
+                        View on GitHub →
+                    </a>
+                </div>
                 <div class="dependency-card">
                     <div class="dependency-icon">⚡</div>
                     <h3>LLVM</h3>

@@ -2,7 +2,7 @@
 
 <div align="center">
 
-[![Join Facebook Group](https://img.shields.io/badge/Facebook-NitroPascal-blue?style=for-the-badge&logo=facebook)](https://www.facebook.com/groups/nitropascal)  [![Chat on Discord](https://img.shields.io/discord/754884471324672040?style=for-the-badge)](https://discord.gg/tinyBigGAMES) [![Follow on Bluesky](https://img.shields.io/badge/Bluesky-tinyBigGAMES-blue?style=for-the-badge&logo=bluesky)](https://bsky.app/profile/tinybiggames.com) 
+[![Join Facebook Group](https://img.shields.io/badge/Facebook-NitroPascal-blue?style=for-the-badge&logo=facebook)](https://www.facebook.com/groups/nitropascal)  [![Chat on Discord](https://img.shields.io/discord/754884471324672040?style=for-the-badge)](https://discord.gg/tPWjMwK) [![Follow on Bluesky](https://img.shields.io/badge/Bluesky-tinyBigGAMES-blue?style=for-the-badge&logo=bluesky)](https://bsky.app/profile/tinybiggames.com) 
 
 **Modern Pascal • C Performance**
 
@@ -32,11 +32,11 @@
 
 ## 🎯 Introduction
 
-NitroPascal is a next-generation Pascal implementation that bridges the elegance of Pascal with the raw performance of C. By combining modern language features with low-level optimization capabilities, NitroPascal aims to deliver the best of both worlds: readable, maintainable code that doesn't sacrifice speed.
+NitroPascal is a next-generation Pascal compiler that bridges the elegance of Object Pascal with the raw performance of C. By transpiling Object Pascal code to optimized C++, NitroPascal aims to deliver the best of both worlds: readable, maintainable code that doesn't sacrifice speed.
 
 ## 🔥 What Makes It Special?
 
-NitroPascal takes a revolutionary approach to achieving C-level performance: **transpilation**. Instead of interpreting or compiling directly to bytecode, NitroPascal transpiles modern NitroPascal code into highly optimized, idiomatic C++. This intermediate C++ representation is then compiled using **Zig as a drop-in C++ compiler**, with the entire build orchestrated through **build.zig**, unlocking:
+NitroPascal takes a revolutionary approach to achieving C-level performance: **transpilation**. Instead of interpreting or compiling directly to bytecode, NitroPascal transpiles Object Pascal code into highly optimized, idiomatic C++. This intermediate C++ representation is then compiled using **Zig as a drop-in C++ compiler**, with the entire build orchestrated through **build.zig**, unlocking:
 
 - 🎯 **Multi-Target Compilation**: Generate native binaries for Windows, Linux, macOS, and beyond
 - ⚡ **Aggressive Optimization**: Leverage decades of C++ compiler optimization research through Zig's LLVM backend
@@ -52,7 +52,7 @@ NitroPascal's compilation pipeline transforms your Pascal code through multiple 
 
 ```
 ┌─────────────────┐
-│  NitroPascal    │  Write clean, modern Pascal code
+│  Object Pascal  │  Write clean, modern Pascal code
 │     Source      │
 └────────┬────────┘
          │
@@ -83,31 +83,37 @@ NitroPascal's compilation pipeline transforms your Pascal code through multiple 
 
 ## 💻 Quick Example
 
-See how elegant Pascal code transforms into optimized C++:
+See how elegant Object Pascal code transforms into optimized C++:
 
 <table>
 <tr>
-<th>NitroPascal Source</th>
+<th>Object Pascal Source</th>
 <th>Generated C++ Code</th>
 </tr>
 <tr>
 <td>
 
 ```pascal
-$optimize "debug"
-
 program HelloWorld;
 
-extern <stdio.h> routine printf(format: ^char; ...): int;
+type
+  TPoint = record
+    X: Integer;
+    Y: Integer;
+  end;
 
-routine Greet(name: ^char);
+procedure PrintPoint(const P: TPoint);
 begin
-  printf("Hello, %s!\n", name);
+  WriteLn('Point(', P.X, ', ', P.Y, ')');
 end;
 
+var
+  Point: TPoint;
 begin
-  Greet("NitroPascal");
-  ExitCode := 0;
+  Point.X := 10;
+  Point.Y := 20;
+  PrintPoint(Point);
+  WriteLn('Hello from NitroPascal!');
 end.
 ```
 
@@ -116,14 +122,26 @@ end.
 
 ```cpp
 // Optimized C++ output
-#include <stdio.h>
+#include <iostream>
 
-void Greet(const char* name) {
-  printf("Hello, %s!\n", name);
+struct TPoint {
+  int32_t X;
+  int32_t Y;
+};
+
+void PrintPoint(const TPoint& P) {
+  std::wcout << L"Point(" << P.X 
+             << L", " << P.Y << L")" 
+             << std::endl;
 }
 
 int main() {
-  Greet("NitroPascal");
+  TPoint Point;
+  Point.X = 10;
+  Point.Y = 20;
+  PrintPoint(Point);
+  std::wcout << L"Hello from NitroPascal!" 
+             << std::endl;
   return 0;
 }
 ```
@@ -145,7 +163,7 @@ Pascal has always been celebrated for its clarity and strong typing, making it a
 
 ### Language & Syntax
 - 🎨 **Clean, expressive syntax** that doesn't compromise on power
-- 📝 **Modern Pascal syntax** with contemporary language features
+- 📝 **Object Pascal syntax** compatible with Delphi code
 - 🔒 **Memory safety** through strong typing without garbage collection overhead
 
 ### Performance & Optimization
