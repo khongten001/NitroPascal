@@ -1,377 +1,441 @@
-# NitroPascal Developer Manual
+# NitroPascal User Manual
 
 **Version:** 1.0  
-**Last Updated:** 2025-10-07  
-**Copyright:** © 2025-present tinyBigGAMES™ LLC
+**Last Updated:** 2025-01-12  
+**Website:** [https://nitropascal.org](https://nitropascal.org)  
+**GitHub:** [https://github.com/tinyBigGAMES/NitroPascal](https://github.com/tinyBigGAMES/NitroPascal)
 
 ---
 
 ## Table of Contents
 
 1. [Introduction](#1-introduction)
-   - [What is NitroPascal?](#what-is-nitropascal)
-   - [Key Features](#key-features)
-   - [Design Philosophy](#design-philosophy)
-   - [Who Should Use NitroPascal?](#who-should-use-nitropascal)
-
-2. [Getting Started](#2-getting-started)
-   - [Installation](#installation)
-   - [Your First Project](#your-first-project)
-   - [Hello World Example](#hello-world-example)
-   - [Project Structure](#project-structure)
-
-3. [CLI Reference](#3-cli-reference)
-   - [Command Overview](#command-overview)
-   - [nitro init](#nitro-init)
-   - [nitro build](#nitro-build)
-   - [nitro run](#nitro-run)
-   - [nitro clean](#nitro-clean)
-   - [nitro convert-header](#nitro-convert-header)
-   - [nitro version](#nitro-version)
-   - [nitro help](#nitro-help)
-
-4. [Language Specification](#4-language-specification)
-   - [Lexical Structure](#lexical-structure)
-   - [Type System](#type-system)
-   - [Compilation Units](#compilation-units)
-   - [Declarations](#declarations)
-   - [Statements](#statements)
-   - [Expressions](#expressions)
-   - [Operators](#operators)
-   - [Parameter Passing](#parameter-passing)
-
-5. [Compiler Directives](#5-compiler-directives)
-   - [Overview](#directives-overview)
-   - [$target](#target-directive)
-   - [$optimize](#optimize-directive)
-   - [$exceptions](#exceptions-directive)
-   - [$strip_symbols](#strip_symbols-directive)
-   - [$module_path](#module_path-directive)
-   - [$include_path](#include_path-directive)
-   - [$library_path](#library_path-directive)
-   - [$link_library](#link_library-directive)
-
-6. [Conditional Compilation](#6-conditional-compilation)
-   - [Overview](#conditional-overview)
-   - [Preprocessor Directives](#preprocessor-directives)
-   - [Examples](#conditional-examples)
-   - [Best Practices](#conditional-best-practices)
-
-7. [External Interop](#7-external-interop)
-   - [C/C++ Integration](#cc-integration)
-   - [System Headers](#system-headers)
-   - [DLL/Shared Libraries](#dllshared-libraries)
-   - [Calling Conventions](#calling-conventions)
-
-8. [Architecture & Internals](#8-architecture--internals)
-   - [Compilation Pipeline](#compilation-pipeline)
-   - [AST Structure](#ast-structure)
-   - [Code Generation](#code-generation)
-   - [Zig Build Integration](#zig-build-integration)
-
-9. [Complete Examples](#9-complete-examples)
-   - [Basic Programs](#basic-programs)
-   - [Working Features](#working-features)
-   - [External C Libraries](#external-c-libraries)
-
-10. [Implementation Status](#10-implementation-status)
-    - [Test Results](#test-results)
-    - [Implemented Features](#implemented-features)
-    - [Critical Missing Features](#critical-missing-features)
-    - [Known Issues](#known-issues)
-    - [Roadmap](#roadmap)
-
-11. [Appendices](#11-appendices)
-    - [Keyword Reference](#appendix-a-keyword-reference)
-    - [Operator Precedence](#appendix-b-operator-precedence)
-    - [Type Mapping](#appendix-c-type-mapping)
-    - [EBNF Grammar](#appendix-d-ebnf-grammar)
+2. [Installation](#2-installation)
+3. [Quick Start](#3-quick-start)
+4. [Understanding NitroPascal](#4-understanding-nitropascal)
+5. [The NitroPascal CLI](#5-the-nitropascal-cli)
+6. [Language Reference](#6-language-reference)
+7. [Compiler Directives](#7-compiler-directives)
+8. [Project Structure](#8-project-structure)
+9. [Build System](#9-build-system)
+10. [Advanced Topics](#10-advanced-topics)
+11. [Examples](#11-examples)
+12. [Troubleshooting](#12-troubleshooting)
+13. [FAQ](#13-faq)
 
 ---
 
-# 1. Introduction
+## 1. Introduction
 
-## What is NitroPascal?
+### 1.1 What is NitroPascal?
 
-NitroPascal is a modern Pascal dialect designed to transpile cleanly to C++, leveraging Zig for building. It provides Pascal's clarity and readability while generating straightforward C++ code. NitroPascal offers a fresh, streamlined language that maps directly to modern C++ constructs.
+NitroPascal is a **next-generation Pascal compiler** that combines the elegance of Object Pascal with the raw performance of C/C++. Unlike traditional Pascal compilers, NitroPascal uses a revolutionary **transpilation approach**:
 
-**Core Mission:** Provide a modern Pascal-like language that transpiles to clean, readable C++, enabling:
-- Developers who prefer Pascal syntax to target modern platforms
-- Clean, maintainable C++ code generation
-- Cross-platform compilation via Zig build system
-- Direct interop with C/C++ libraries and ecosystems
-- Modern development without IDE dependencies
-
-## Key Features
-
-### Pascal Syntax, C++ Semantics
-NitroPascal looks like Pascal but compiles directly to C++:
-
-```pascal
-// NitroPascal source
-routine add(const x, y: int): int;
-begin
-  return x + y;
-end;
+```
+Pascal Source → C++ Code → Native Binary
 ```
 
-Transpiles to:
+By generating optimized C++20 code and leveraging the Zig compiler (which uses LLVM), NitroPascal delivers **C-level performance** while maintaining Pascal's readability and strong typing.
 
-```cpp
-// Generated C++
-int32_t add(const int32_t x, const int32_t y) {
-  return x + y;
-}
+### 1.2 Why NitroPascal?
+
+**For Pascal Developers:**
+- ✅ Write in familiar Object Pascal syntax (Delphi-compatible)
+- ✅ Achieve C/C++ performance without learning new languages
+- ✅ Cross-platform deployment (Windows, Linux, macOS, and more)
+- ✅ Easy C/C++ library integration
+
+**For C++ Developers:**
+- ✅ Higher-level language with strong typing and clarity
+- ✅ Faster development with Pascal's clean syntax
+- ✅ No compromise on performance
+- ✅ Transparent C++ output for debugging
+
+**For Everyone:**
+- ✅ Modern toolchain (Zig build system)
+- ✅ Zero external dependencies (bundled runtime)
+- ✅ Open source (BSD-3-Clause license)
+- ✅ Commercial-friendly licensing
+
+### 1.3 How It Works
+
+NitroPascal's compilation pipeline consists of four stages:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ Stage 1: Parsing                                        │
+│ ─────────────────────────────────────────────────────── │
+│ Pascal Source (.pas) → AST (Abstract Syntax Tree)       │
+│ Parser: DelphiAST (full Object Pascal support)          │
+└────────────────────────┬────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────┐
+│ Stage 2: Code Generation                                │
+│ ─────────────────────────────────────────────────────── │
+│ AST → Optimized C++20 Code (.cpp/.h)                    │
+│ Generator: NitroPascal CodeGen Engine                   │
+│ Runtime: Custom C++ Runtime Library (RTL)               │
+└────────────────────────┬────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────┐
+│ Stage 3: Compilation                                     │
+│ ─────────────────────────────────────────────────────── │
+│ C++ Code → Native Object Files                           │
+│ Compiler: Zig (LLVM backend)                             │
+│ Orchestrator: build.zig (Zig build system)               │
+└────────────────────────┬────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────┐
+│ Stage 4: Linking                                         │
+│ ─────────────────────────────────────────────────────── │
+│ Object Files → Executable/Library                        │
+│ Output: Native binary for target platform                │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### Modern Language Features
+**Key Insight:** NitroPascal doesn't reinvent the wheel. It leverages:
+- **DelphiAST** for robust Object Pascal parsing
+- **LLVM** (via Zig) for world-class optimization
+- **C++20** as a "portable assembly language"
+- **Zig's build system** for cross-platform builds
 
-- **Case-sensitive** - Modern convention (unlike traditional Pascal)
-- **Explicit types** - No type inference, all types declared
-- **Minimal keywords** - Small core language (~41 keywords)
-- **Direct C/C++ interop** - Via `extern` declarations
-- **Three compilation modes** - program (exe), module (obj), library (dll/so)
-- **Conditional compilation** - C-style preprocessor (`#ifdef`, `#define`, etc.)
-- **Compiler directives** - Fine-grained build control (`$target`, `$optimize`, etc.)
-
-### Zig-Powered Build System
-
-- **Cross-compilation** - Target any platform from any platform
-- **Modern toolchain** - No complex IDE dependencies
-- **Fast builds** - Leveraging Zig's incremental compilation
-- **C++ standard library** - Full access to modern C++20 features
-
-## Design Philosophy
-
-### 1. Simplicity
-Small core language - libraries do the work. No built-in I/O, string functions, or math operations. Everything is explicit via external declarations.
-
-### 2. Transparency
-What you write is what you get in C++. No hidden magic, no implicit conversions, no runtime overhead.
-
-### 3. No Magic
-Explicit over implicit. Every operation is visible in the source code.
-
-### 4. Interoperability
-Seamless C/C++ integration. Direct access to system libraries and existing C++ codebases.
-
-### 5. Practicality
-Built for real programs, not academic exercises.
-
-## Who Should Use NitroPascal?
-
-### Perfect For:
-- **C++ developers** who prefer Pascal syntax
-- **System programmers** needing direct C interop
-- **Cross-platform developers** targeting multiple OSes
-- **Projects with algorithms and business logic**
-
-### Not Ideal For:
-- Projects requiring full Delphi RTL/VCL compatibility
-- Rapid GUI development (no visual components)
-- Projects needing traditional Pascal case-insensitivity
+This means you get the combined benefits of decades of compiler research and optimization, wrapped in a simple Pascal-to-native workflow.
 
 ---
 
-# 2. Getting Started
+## 2. Installation
 
-## Installation
+### 2.1 System Requirements
 
-### Requirements
-- **Zig compiler** (bundled with NitroPascal distribution)
-- **Windows, Linux, or macOS**
-- **C++ compiler** (provided by Zig)
+**Operating Systems:**
+- Windows 10/11 (x64)
+- Linux (x64) - Ubuntu 20.04+ recommended
+- macOS 10.15+ (x64 or ARM64)
 
-### Building from Source
+**Disk Space:**
+- ~100 MB for NitroPascal installation
+- Additional space for project outputs
 
+**Memory:**
+- Minimum: 2 GB RAM
+- Recommended: 4 GB+ RAM
+
+### 2.2 Installation Steps
+
+#### Windows
+
+1. **Download** the latest release from [GitHub Releases](https://github.com/tinyBigGAMES/NitroPascal/releases)
+2. **Extract** the archive to your preferred location (e.g., `C:\NitroPascal`)
+3. **Add to PATH** (optional but recommended):
+   - Open System Properties → Environment Variables
+   - Add `C:\NitroPascal\bin` to your PATH
+4. **Verify installation**:
+   ```cmd
+   nitro --version
+   ```
+
+### 2.3 Bundled Components
+
+NitroPascal includes everything you need:
+- ✅ **nitro** - Command-line compiler
+- ✅ **Zig** - C++ compiler (embedded)
+- ✅ **Runtime Library** - NitroPascal RTL (C++)
+- ✅ **DelphiAST** - Pascal parser (embedded)
+
+**No additional installations required!**
+
+---
+
+## 3. Quick Start
+
+### 3.1 Your First Program
+
+Let's create a classic "Hello, World!" program:
+
+**Step 1: Create a new project**
 ```bash
-# Clone repository
-git clone https://github.com/tinyBigGAMES/NitroPascal.git
-cd NitroPascal
-
-# Build with Delphi (Windows)
-# Open NitroPascal.groupproj in Delphi IDE
-# Build the nitro project
-
-# The nitro.exe executable will be in:
-# src\nitro\Win64\Release\nitro.exe
-```
-
-### PATH Configuration
-
-Add the NitroPascal `bin` directory to your system PATH:
-
-**Windows:**
-```cmd
-set PATH=%PATH%;C:\Path\To\NitroPascal\bin
-```
-
-**Linux/macOS:**
-```bash
-export PATH=$PATH:/path/to/nitropascal/bin
-```
-
-## Your First Project
-
-Create a new project:
-
-```bash
-nitro init MyFirstApp
-cd MyFirstApp
+nitro init HelloWorld
 ```
 
 This creates:
 ```
-MyFirstApp/
-  ├── src/
-  │   └── MyFirstApp.pas  (entry point)
-  ├── generated/          (C++ output)
-  ├── zig-out/
-  │   └── bin/            (compiled executable)
-  └── build.zig           (build configuration)
+HelloWorld/
+├── src/
+│   └── HelloWorld.pas      # Your main source file
+├── runtime/
+│   ├── runtime.cpp         # NitroPascal runtime
+│   └── runtime.h
+├── generated/              # Generated C++ (created on build)
+└── build.zig               # Build configuration
 ```
 
-## Hello World Example
+**Step 2: Navigate to your project**
+```bash
+cd HelloWorld
+```
 
-The generated `MyFirstApp.pas` contains:
+**Step 3: Build the project**
+```bash
+nitro build
+```
+
+**Step 4: Run your program**
+```bash
+nitro run
+```
+
+**Output:**
+```
+Hello world, welcome to NitroPascal!
+```
+
+### 3.2 Modifying Your Program
+
+Open `src/HelloWorld.pas` in your favorite editor:
 
 ```pascal
-program MyFirstApp;
-
-extern <stdio.h> routine printf(format: ^char; ...): int;
-
+program HelloWorld;
 begin
-  printf("Hello from NitroPascal!\n");
-  ExitCode := 0;
+  WriteLn('Hello world, welcome to NitroPascal!');
 end.
 ```
 
-Build and run:
+Let's make it more interesting:
 
+```pascal
+program HelloWorld;
+
+var
+  Name: string;
+  Age: Integer;
+
+begin
+  WriteLn('=== Welcome to NitroPascal! ===');
+  WriteLn('');
+  
+  Write('Enter your name: ');
+  ReadLn(Name);
+  
+  Write('Enter your age: ');
+  ReadLn(Age);
+  
+  WriteLn('');
+  WriteLn('Hello, ', Name, '!');
+  WriteLn('You are ', Age, ' years old.');
+  
+  if Age >= 18 then
+    WriteLn('You are an adult.')
+  else
+    WriteLn('You are a minor.');
+    
+  WriteLn('');
+  WriteLn('Program compiled with NitroPascal');
+end.
+```
+
+**Rebuild and run:**
 ```bash
 nitro build
 nitro run
 ```
 
-Output:
+### 3.3 Creating Different Project Types
+
+NitroPascal supports three project templates:
+
+#### Program (Executable)
+```bash
+nitro init MyGame --template program
 ```
-Hello from NitroPascal!
+Creates a standalone executable application.
+
+#### Library (Shared/Dynamic)
+```bash
+nitro init MyLib --template library
 ```
+Creates a shared library (`.dll` on Windows, `.so` on Linux, `.dylib` on macOS).
 
-## Project Structure
-
-### Directory Layout
-
+#### Unit (Static Library)
+```bash
+nitro init MyUnit --template unit
 ```
-MyProject/
-├── src/                    # Your .pas source files
-│   ├── MyProject.pas       # Entry point (program)
-│   ├── Utils.pas           # Module (optional)
-│   └── MyLib.pas           # Library (optional)
-│
-├── generated/              # Generated C++ code (auto-created)
-│   ├── MyProject.cpp
-│   ├── MyProject.h
-│   ├── Utils.cpp
-│   ├── Utils.h
-│   ├── MyLib.cpp
-│   └── MyLib.h
-│
-├── zig-out/               # Build artifacts (auto-created)
-│   └── bin/
-│       └── MyProject.exe  # Final executable
-│
-├── .zig-cache/            # Build cache (auto-created)
-│
-└── build.zig              # Zig build configuration (auto-updated)
-```
-
-### File Naming Conventions
-
-- **Programs:** `ProjectName.pas` or `main.pas`
-- **Modules:** `ModuleName.pas`
-- **Libraries:** `LibraryName.pas`
-
-### Entry Point Detection
-
-The compiler looks for entry points in this order:
-1. `{ProjectName}.pas` (matches project directory name)
-2. `main.pas` (fallback)
+Creates a static library (`.lib` on Windows, `.a` on Linux/macOS).
 
 ---
 
-# 3. CLI Reference
+## 4. Understanding NitroPascal
 
-## Command Overview
+### 4.1 The Compilation Model
 
+NitroPascal uses **transpilation** rather than direct compilation:
+
+**Traditional Compiler:**
 ```
-nitro <command> [options]
-
-Commands:
-  init              Create a new NitroPascal project
-  build             Compile Pascal source to C++ and build executable
-  run               Execute the compiled program
-  clean             Remove all generated files
-  convert-header    Convert C header file to Pascal unit
-  version           Display version information
-  help              Display help message
+Pascal → Assembly → Machine Code
 ```
 
-## nitro init
-
-Create a new NitroPascal project.
-
-### Syntax
-```bash
-nitro init <project-name>
+**NitroPascal:**
+```
+Pascal → C++ → Assembly → Machine Code
 ```
 
-### Parameters
-- `<project-name>` - Name of the project to create
+**Why this approach?**
 
-### Example
-```bash
-nitro init GameEngine
-```
+1. **Leverage Existing Optimizers**: LLVM has decades of optimization research
+2. **Cross-Platform for Free**: C++ compiles everywhere
+3. **Interoperability**: Easy C/C++ library integration
+4. **Maintainability**: Smaller, simpler codebase
+5. **Debugging**: Inspect generated C++ when needed
 
-Creates:
-```
-GameEngine/
-  ├── src/GameEngine.pas
-  ├── generated/
-  └── build.zig
-```
+### 4.2 The Runtime Library (RTL)
 
-### Generated Entry Point
+NitroPascal includes a custom **Runtime Library** written in C++20 that provides:
 
+- **I/O Functions**: `WriteLn`, `Write`, `ReadLn`
+- **String Operations**: UTF-16 strings with 1-based indexing (Delphi-compatible)
+- **Control Flow Helpers**: `ForLoop`, `WhileLoop`, `RepeatUntil`
+- **Type Support**: Dynamic arrays, sets, records
+- **Standard Functions**: `Length`, `Copy`, `Pos`, `IntToStr`, etc.
+
+The RTL ensures that generated C++ code behaves **exactly like Delphi Pascal**.
+
+**Example:**
+
+**Pascal:**
 ```pascal
-program GameEngine;
-
-extern <stdio.h> routine printf(format: ^char; ...): int;
-
-begin
-  printf("Hello from NitroPascal!\n");
-  ExitCode := 0;
-end.
+for i := 1 to 10 do
+  WriteLn(i);
 ```
 
-## nitro build
+**Generated C++:**
+```cpp
+np::ForLoop(1, 10, [&](int i) {
+    np::WriteLn(i);
+});
+```
 
-Compile Pascal source to C++ and build executable.
+The `np::ForLoop` function in the RTL guarantees Delphi semantics (inclusive range, iterator immutability).
 
-### Syntax
+### 4.3 Type Mappings
+
+NitroPascal maps Pascal types to C++ equivalents:
+
+| Pascal Type | C++ Type | Notes |
+|-------------|----------|-------|
+| `Integer` | `int32_t` | Fixed 32-bit |
+| `Cardinal` | `uint32_t` | Unsigned 32-bit |
+| `Int64` | `int64_t` | Fixed 64-bit |
+| `Byte` | `uint8_t` | Unsigned 8-bit |
+| `Word` | `uint16_t` | Unsigned 16-bit |
+| `Boolean` | `bool` | Native bool |
+| `Char` | `char16_t` | UTF-16 character |
+| `String` | `np::String` | UTF-16, 1-based indexing |
+| `Double` | `double` | IEEE 754 double |
+| `Single` | `float` | IEEE 754 single |
+| `Pointer` | `void*` | Raw pointer |
+| `array of T` | `np::DynArray<T>` | Dynamic array |
+| `array[a..b] of T` | `std::array<T, N>` | Static array |
+| `record` | `struct` | Plain struct |
+| `class` | `class` | C++ class |
+
+### 4.4 Generated Code Structure
+
+When you run `nitro build`, the following happens:
+
+**1. Preprocessing** (Phase 0)
+- Compiler directives are extracted and applied
+- Build settings are configured
+
+**2. Parsing** (Phase 1)
+- Pascal source is parsed into JSON AST
+- AST is saved to `generated/<filename>.json`
+
+**3. Code Generation** (Phase 2)
+- JSON AST is transformed to C++ code
+- Output: `generated/<filename>.cpp` and `generated/<filename>.h`
+
+**4. Build Script Generation** (Phase 3)
+- `build.zig` is updated with source files and settings
+
+**5. Compilation** (Phase 4)
+- Zig compiles C++ code to object files
+- Links with runtime library
+- Output: `zig-out/bin/<projectname>` (or `.exe` on Windows)
+
+---
+
+## 5. The NitroPascal CLI
+
+### 5.1 Command Reference
+
+#### `nitro init <name> [options]`
+
+Creates a new NitroPascal project.
+
+**Syntax:**
+```bash
+nitro init <project-name> [--template <type>]
+```
+
+**Options:**
+- `<project-name>` - Name of the project (required)
+- `-t, --template <type>` - Project template: `program`, `library`, or `unit` (default: `program`)
+
+**Examples:**
+```bash
+# Create a program (executable)
+nitro init MyGame
+
+# Create a shared library
+nitro init MyLib --template library
+
+# Create a static library
+nitro init MyUnit -t unit
+```
+
+**Output:**
+```
+Creating project: MyGame
+Location: C:\Projects\MyGame
+
+✓ Created directory structure
+✓ Copied runtime files
+✓ Created src/MyGame.pas
+✓ Created build.zig
+
+Project initialized successfully!
+
+Next steps:
+  cd MyGame
+  nitro build
+  nitro run
+```
+
+---
+
+#### `nitro build`
+
+Compiles the current project.
+
+**Syntax:**
 ```bash
 nitro build
 ```
 
-### Process
-1. **Transpilation:** Pascal → C++ (`.pas` → `.cpp`/`.h`)
-2. **Build Configuration:** Updates `build.zig`
-3. **Compilation:** Zig compiles C++ to native binary
+**What it does:**
+1. Finds entry point (`<ProjectName>.pas` or `main.pas`)
+2. Preprocesses compiler directives
+3. Transpiles Pascal to C++
+4. Updates `build.zig` with generated sources
+5. Invokes Zig compiler
+6. Produces native executable/library
 
-### Output
+**Output:**
 ```
-Entry point: MyProject.pas
+Entry point: MyGame.pas
 Compiling NitroPascal to C++...
 
 ✓ Transpilation complete
@@ -379,61 +443,65 @@ Compiling NitroPascal to C++...
 ✓ Updated build.zig
 
 Building with Zig...
-  [3/3] MyProject.cpp
+
+  [1/3] Compile C++ runtime.cpp
+  [2/3] Compile C++ MyGame.cpp
+  [3/3] Link executable MyGame
 
 ✓ Build completed successfully!
 ```
 
-### Error Handling
+**Generated Files:**
+- `generated/*.cpp` - Generated C++ source
+- `generated/*.h` - Generated C++ headers
+- `generated/*.json` - Intermediate AST (for debugging)
+- `zig-out/bin/<executable>` - Final binary
 
-If compilation fails, detailed error messages are shown:
+---
 
-```
-MyProject.pas(10,5): error: Expected ";"
-  x = y + z
-    ^
-Build failed!
-```
+#### `nitro run`
 
-## nitro run
+Executes the compiled program (programs only).
 
-Execute the compiled program.
-
-### Syntax
+**Syntax:**
 ```bash
 nitro run
 ```
 
-### Prerequisites
+**Requirements:**
 - Project must be built first (`nitro build`)
-- Executable must exist in `zig-out/bin/`
+- Only works with `program` template (not libraries)
 
-### Example
+**Example:**
 ```bash
-$ nitro run
-
-Running MyProject...
-
-Hello from NitroPascal!
-
-Program exited with code: 0
+nitro build
+nitro run
 ```
 
-## nitro clean
+**Output:**
+```
+Running MyGame...
 
-Remove all generated files and build artifacts.
+[your program output here]
+```
 
-### Syntax
+---
+
+#### `nitro clean`
+
+Removes all generated files and build artifacts.
+
+**Syntax:**
 ```bash
 nitro clean
 ```
 
-### Removes
-- `generated/` directory
-- `.zig-cache/` directory
-- `zig-out/` directory
+**Removes:**
+- `generated/` - Generated C++ code and AST
+- `.zig-cache/` - Zig build cache
+- `zig-out/` - Build outputs
 
-### Output
+**Output:**
 ```
 Cleaning project...
 
@@ -441,41 +509,49 @@ Cleaning project...
 ✓ Removed zig-cache/
 ✓ Removed zig-out/
 
-✓ Clean completed successfully!
+Clean completed successfully!
 ```
 
-## nitro convert-header
+**Use case:** When you want a fresh build or encounter build issues.
 
-Convert C header file to Pascal unit (planned feature).
+---
 
-### Syntax
+#### `nitro convert-header <input.h> [options]`
+
+Converts C header files to Pascal units (future feature).
+
+**Syntax:**
 ```bash
-nitro convert-header <input.h> [options]
+nitro convert-header <input.h> [--output <file>] [--library <name>] [--convention <type>]
 ```
 
-### Options
-- `--output <file>` - Output Delphi unit filename
+**Options:**
+- `<input.h>` - Input C header file (required)
+- `--output <file>` - Output Pascal unit filename
 - `--library <name>` - Target library name for external declarations
-- `--convention <type>` - Calling convention (cdecl, stdcall) [default: cdecl]
+- `--convention <type>` - Calling convention: `cdecl` or `stdcall` (default: `cdecl`)
 
-### Example
+**Example:**
 ```bash
 nitro convert-header sqlite3.h --output USQLite3.pas --library sqlite3
 ```
 
-### Status
-**Not yet implemented.** Planned for future release.
+**Status:** 🚧 Coming in future release
 
-## nitro version
+---
 
-Display version information.
+#### `nitro version`
 
-### Syntax
+Displays version information.
+
+**Syntax:**
 ```bash
 nitro version
+# or
+nitro --version
 ```
 
-### Output
+**Output:**
 ```
  _  _ _ _           ___                  _ ™
 | \| (_) |_ _ _ ___| _ \__ _ ___ __ __ _| |
@@ -483,7 +559,7 @@ nitro version
 |_|\_|_|\__|_| \___/_| \__,_/__/\__\__,_|_|
       Modern Pascal * C Performance
 
-Version 1.0.0.0
+Version 1.0.0
 
 Copyright © 2025-present tinyBigGAMES™ LLC
 All Rights Reserved.
@@ -491,3140 +567,2185 @@ All Rights Reserved.
 Licensed under BSD 3-Clause License
 ```
 
-## nitro help
+---
 
-Display help message.
+#### `nitro help`
 
-### Syntax
+Displays help information.
+
+**Syntax:**
 ```bash
 nitro help
+# or
+nitro --help
+# or
+nitro -h
+# or
+nitro (no arguments)
 ```
 
-### Aliases
-- `nitro -h`
-- `nitro --help`
+**Output:**
+Shows comprehensive help with all commands, options, and examples.
 
 ---
 
-# 4. Language Specification
-
-## Lexical Structure
-
-### Character Set
-
-NitroPascal uses **UTF-8** encoding. Source files must be valid UTF-8.
-
-### Case Sensitivity
-
-NitroPascal is **case-sensitive** (unlike traditional Pascal):
-
-```pascal
-var count: int;      // Different from
-var Count: int;      // Different from
-var COUNT: int;      // All three are distinct
-
-routine test();      // ✓ Correct
-Routine test();      // ✗ Error - keyword must be lowercase
-```
-
-### Naming Conventions
-
-**Keywords:** lowercase (`module`, `routine`, `var`, `type`, `begin`, `end`)
-
-**Built-in types:** lowercase (`int`, `uint`, `double`, `bool`, `string`)
-
-**User types:** PascalCase (`Point`, `Vector`, `MyRecord`)
-
-**Variables/routines:** camelCase (`userName`, `itemCount`, `calculateTotal`)
-
-### Comments
-
-```pascal
-// Single-line comment (C++ style)
-
-(* 
-   Multi-line comment
-   (Pascal style)
-*)
-
-{
-  Alternative multi-line comment
-  (Curly brace style)
-}
-```
-
-**Note:** Comments do not nest.
-
-### Identifiers
-
-```ebnf
-Identifier = Letter { Letter | Digit | "_" } .
-Letter     = "a".."z" | "A".."Z" .
-Digit      = "0".."9" .
-```
-
-**Rules:**
-- Must start with a letter
-- Can contain letters, digits, underscores
-- Case-sensitive
-- Cannot be a reserved keyword
-
-**Valid:**
-```pascal
-count
-userName
-my_variable
-Item2
-_internal  // Leading underscore allowed
-```
-
-**Invalid:**
-```pascal
-2count     // Starts with digit
-my-var     // Contains hyphen
-routine    // Reserved keyword
-```
-
-### Keywords (Reserved)
-
-NitroPascal has **41 reserved keywords** (must be lowercase):
-
-```
-and          array        begin        break        case
-const        continue     div          do           downto
-else         end          extern       false        finalize
-for          halt         if           import       library
-mod          module       nil          not          of
-or           program      public       repeat       return
-routine      shl          shr          then         to
-true         type         until        var          while
-xor
-```
-
-### Operators and Delimiters
-
-**Arithmetic:** `+` `-` `*` `/` `div` `mod` `shl` `shr`
-
-**Comparison:** `=` `<>` `<` `>` `<=` `>=`
-
-**Logical:** `and` `or` `not` `xor`
-
-**Assignment:** `:=`
-
-**Pointer:** `^` `@`
-
-**Delimiters:** `(` `)` `[` `]` `.` `,` `:` `;` `..`
-
-**Special:** `$` for directives, `#` for preprocessor
-
-### Literals
-
-#### Integer Literals
-
-```pascal
-42           // Decimal
-0xFF         // Hexadecimal (prefix 0x)
-0b1010       // Binary (prefix 0b)
-```
-
-#### Floating-Point Literals
-
-```pascal
-3.14
-2.5e10
-1.23E-5
-.5           // 0.5
-```
-
-#### Character Literals
-
-```pascal
-'A'
-'9'
-'\n'         // Newline
-'\t'         // Tab
-'\\'         // Backslash
-'\''         // Single quote
-```
-
-#### String Literals
-
-```pascal
-"Hello, World!"
-"Line 1\nLine 2"
-"Tab\there"
-"Quote: \"Hello\""
-""           // Empty string
-```
-
-**Escape sequences:**
-- `\n` - newline
-- `\t` - tab
-- `\r` - carriage return
-- `\\` - backslash
-- `\"` - double quote
-- `\'` - single quote
-- `\0` - null character
-
-#### Boolean Literals
-
-```pascal
-true
-false
-```
-
-#### Nil Literal
-
-```pascal
-nil          // Null pointer
-```
-
-## Type System
-
-### Built-in Types
-
-| Type | C++ Type | Size | Range |
-|------|----------|------|-------|
-| `int` | `int32_t` | 4 bytes | -2,147,483,648 to 2,147,483,647 |
-| `uint` | `uint32_t` | 4 bytes | 0 to 4,294,967,295 |
-| `int64` | `int64_t` | 8 bytes | -9,223,372,036,854,775,808 to 9,223,372,036,854,775,807 |
-| `uint64` | `uint64_t` | 8 bytes | 0 to 18,446,744,073,709,551,615 |
-| `int16` | `int16_t` | 2 bytes | -32,768 to 32,767 |
-| `uint16` | `uint16_t` | 2 bytes | 0 to 65,535 |
-| `byte` | `uint8_t` | 1 byte | 0 to 255 |
-| `double` | `double` | 8 bytes | IEEE 754 double |
-| `float` | `float` | 4 bytes | IEEE 754 float |
-| `bool` | `bool` | 1 byte | `true` or `false` |
-| `char` | `char` | 1 byte | ASCII character |
-| `string` | `std::string` | Variable | Managed string type |
-| `pointer` | `void*` | 4/8 bytes | Generic pointer |
-
-### Type Aliases
-
-```pascal
-type
-  Counter = int;
-  Name = string;
-```
-
-Transpiles to:
-```cpp
-using Counter = int32_t;
-using Name = std::string;
-```
-
-### Enumerations
-
-```pascal
-type
-  Color = (red, green, blue);
-  Status = (idle, running, stopped);
-```
-
-Transpiles to:
-```cpp
-enum Color {
-  red,
-  green,
-  blue
-};
-
-enum Status {
-  idle,
-  running,
-  stopped
-};
-```
-
-**Enum values are integers** starting from 0.
-
-### Records (Structs)
-
-Records provide structured data types similar to C structs.
-
-**Syntax:**
-```pascal
-type
-  Point = record
-    x, y: double;
-  end;
-
-  Person = record
-    name: string;
-    age: int;
-    active: bool;
-  end;
-```
-
-Transpiles to:
-```cpp
-struct Point {
-  double x, y;
-};
-
-struct Person {
-  std::string name;
-  int32_t age;
-  bool active;
-};
-```
-
-### Arrays (Fixed Size)
-
-Arrays provide fixed-size collections of elements.
-
-**Syntax:**
-```pascal
-type
-  Buffer = array[0..1023] of byte;
-  Matrix = array[0..9, 0..9] of double;
-```
-
-Transpiles to:
-```cpp
-using Buffer = std::array<uint8_t, 1024>;
-using Matrix = std::array<std::array<double, 10>, 10>;
-```
-
-### Pointers
-
-```pascal
-type
-  PInt = ^int;
-  PPoint = ^Point;
-```
-
-Transpiles to:
-```cpp
-using PInt = int32_t*;
-using PPoint = Point*;
-```
-
-### String Type
-
-The `string` type is a **managed type** that maps to `std::string`.
-
-```pascal
-var
-  name: string := "Alice";
-  greeting: string;
-begin
-  greeting := "Hello, " + name;  // Concatenation
-end;
-```
-
-Transpiles to:
-```cpp
-std::string name = "Alice";
-std::string greeting;
-greeting = "Hello, " + name;
-```
-
-**Operations:**
-- Assignment: `s1 := s2`
-- Concatenation: `s1 + s2`
-- Comparison: `s1 = s2`, `s1 <> s2`, `s1 < s2`, etc.
-
-**Method Calls:**
-
-Since `string` maps to `std::string`, you can call any C++ string method:
-
-```pascal
-var
-  s: string := "Hello, World!";
-  len: int;
-  sub: string;
-begin
-  len := s.length();              // Call std::string::length()
-  sub := s.substr(0, 5);          // Returns "Hello"
-  s.clear();                      // Empty the string
-end;
-```
-
-### Subrange Types
-
-Subrange types allow you to define a restricted range of values for a type.
-
-**Syntax:**
-```pascal
-type
-  Index = 0..9;
-  Letter = 'A'..'Z';
-  Percentage = 0..100;
-```
-
-Transpiles to:
-```cpp
-using Index = int32_t;  // Range: 0-9
-using Letter = char;     // Range: 'A'-'Z'
-using Percentage = int32_t;  // Range: 0-100
-```
-
-**Note:** Range checking is not enforced at runtime - subranges are type aliases with documentation value.
-
-### Function Pointer Types
-
-Function pointer types allow you to declare types for routines.
-
-**Syntax:**
-```pascal
-type
-  MathFunc = routine(const x: double): double;
-  CompareFunc = routine(const a, b: int): int;
-```
-
-Transpiles to:
-```cpp
-using MathFunc = double (*)(const double);
-using CompareFunc = int32_t (*)(const int32_t, const int32_t);
-```
-
-**Usage:**
-```pascal
-var
-  func: MathFunc;
-  ptr: ^routine(const x: int): int;  // Pointer to function
-begin
-  func := @sqrt;  // Address of routine
-end;
-```
-
-## Compilation Units
-
-### Program
-
-A **program** compiles to an executable with a `main()` function.
-
-```pascal
-program MyApp;
-
-extern <stdio.h> routine printf(format: ^char; ...): int;
-
-var
-  count: int;
-
-begin
-  count := 42;
-  printf("Count: %d\n", count);
-  ExitCode := 0;
-end.
-```
-
-**Rules:**
-- Must have `begin...end.` block (becomes `main()`)
-- Can declare types, constants, variables, routines
-- Can import other modules
-- Implicit `ExitCode` variable (type `int`, default `0`)
-- Implicit `halt(code: int)` routine for early exit
-
-### Module
-
-A **module** compiles to object code (`.obj` or `.o`) for static linking.
-
-```pascal
-module MathUtils;
-
-extern <math.h> routine sqrt(x: double): double;
-
-public type Point = record
-  x, y: double;
-end;
-
-public routine distance(const p1, p2: Point): double;
-var
-  dx, dy: double;
-begin
-  dx := p2.x - p1.x;
-  dy := p2.y - p1.y;
-  return sqrt(dx * dx + dy * dy);
-end;
-
-routine square(const x: double): double;
-begin
-  return x * x;
-end;
-
-end.
-```
-
-**Rules:**
-- No `begin...end.` block
-- `public` items exported (in header)
-- Non-public items are internal (static)
-- Cannot be executed directly
-- Must be imported by programs or other modules
-
-### Library
-
-A **library** compiles to a shared library (`.dll`, `.so`, `.dylib`).
-
-```pascal
-library Calculator;
-
-extern <stdio.h> routine printf(format: ^char; ...): int;
-
-var
-  operationCount: int;
-
-public routine add(const a, b: int): int;
-begin
-  operationCount := operationCount + 1;
-  return a + b;
-end;
-
-public routine getCount(): int;
-begin
-  return operationCount;
-end;
-
-begin
-  // DLL initialization (DLL_PROCESS_ATTACH)
-  operationCount := 0;
-  printf("Calculator library loaded\n");
-end;
-
-finalize
-  // DLL cleanup (DLL_PROCESS_DETACH)
-  printf("Calculator library unloaded (%d operations)\n", operationCount);
-end.
-```
-
-**Rules:**
-- `public` items are DLL-exported
-- Optional `begin` block for initialization
-- Optional `finalize` block for cleanup
-- Cannot be executed directly
-
-## Declarations
-
-### Import Declaration
-
-```pascal
-import ModuleName;
-```
-
-Imports a NitroPascal module.
-
-### Extern Declaration
-
-```pascal
-extern <stdio.h> routine printf(format: ^char; ...): int;
-extern "mylib.h" routine myFunction(const x: int): int;
-extern dll "kernel32.dll" stdcall routine GetCurrentProcessId(): uint;
-```
-
-Declares external C/C++ functions.
-
-### Type Declaration
-
-```pascal
-type
-  Counter = int;
-  Point = record
-    x, y: double;
-  end;
-```
-
-### Constant Declaration
-
-```pascal
-const
-  maxSize: int = 100;
-  pi: double = 3.14159265359;
-  appName: string = "MyApp";
-```
-
-### Variable Declaration
-
-```pascal
-var
-  x: int;
-  y, z: double;
-  name: string := "Default";
-```
-
-### Routine Declaration
-
-```pascal
-routine add(const x, y: int): int;
-begin
-  return x + y;
-end;
-
-public routine multiply(const a, b: int): int;
-begin
-  return a * b;
-end;
-```
-
-## Statements
-
-### Compound Statement
-
-```pascal
-begin
-  statement1;
-  statement2;
-  statement3;
-end;
-```
-
-### Assignment Statement
-
-```pascal
-x := 42;
-name := "Alice";
-ptr^.value := 100;
-```
-
-### If Statement
-
-```pascal
-if condition then
-  statement;
-
-if condition then
-  statement1
+### 5.2 Exit Codes
+
+The `nitro` command uses standard exit codes:
+
+| Exit Code | Meaning |
+|-----------|---------|
+| `0` | Success |
+| `1` | Runtime error |
+| `2` | Invalid arguments/usage |
+| `3` | Build/compilation failure |
+
+**Use in scripts:**
+```bash
+#!/bin/bash
+nitro build
+if [ $? -eq 0 ]; then
+    echo "Build successful"
+    nitro run
 else
-  statement2;
-
-if condition then
-begin
-  statement1;
-  statement2;
-end;
+    echo "Build failed"
+    exit 1
+fi
 ```
-
-### While Statement
-
-```pascal
-while condition do
-  statement;
-
-while x < 10 do
-begin
-  x := x + 1;
-  printf("x = %d\n", x);
-end;
-```
-
-### Repeat Statement
-
-```pascal
-repeat
-  statement;
-  statement;
-until condition;
-```
-
-### For Statement
-
-```pascal
-for i := 1 to 10 do
-  statement;
-
-for i := 10 downto 1 do
-  statement;
-```
-
-**Loop Variable:**
-- Implicitly declared (scoped to loop)
-- Cannot be modified inside loop
-- Not accessible after loop
-
-### Case Statement
-
-```pascal
-case expression of
-  value1: statement1;
-  value2: statement2;
-  value3..value4: statement3;
-else
-  defaultStatement;
-end;
-```
-
-**No fall-through:** Each case implicitly breaks.
-
-### Break Statement
-
-```pascal
-break;
-```
-
-Exits the innermost loop.
-
-### Continue Statement
-
-```pascal
-continue;
-```
-
-Continues to next iteration of loop.
-
-### Return Statement
-
-```pascal
-return;              // Procedures
-return expression;   // Functions
-```
-
-### Halt Statement
-
-```pascal
-halt(exitCode);
-```
-
-Terminates program immediately with exit code.
-
-## Expressions
-
-### Primary Expressions
-
-- Integer literals: `42`, `0xFF`, `0b1010`
-- Float literals: `3.14`, `2.5e10`
-- String literals: `"Hello"`
-- Char literals: `'A'`
-- Boolean literals: `true`, `false`
-- Nil literal: `nil`
-- Identifiers: `variableName`
-- Parenthesized: `(expression)`
-
-### Postfix Expressions
-
-- Function call: `func(arg1, arg2)`
-- Method call: `obj.method(args)`
-- Array indexing: `arr[index]`
-- Field access: `record.field`
-- Pointer dereference: `ptr^`
-
-### Unary Expressions
-
-- Unary plus: `+x`
-- Unary minus: `-x`
-- Logical not: `not flag`
-- Address-of: `@variable`
-
-### Binary Expressions
-
-**Multiplicative:**
-- Multiply: `a * b`
-- Divide: `a / b` (float result)
-- Integer divide: `a div b`
-- Modulo: `a mod b`
-- Shift left: `a shl b`
-- Shift right: `a shr b`
-- Logical and: `a and b`
-
-**Additive:**
-- Add: `a + b`
-- Subtract: `a - b`
-- Logical or: `a or b`
-- Logical xor: `a xor b`
-
-**Relational:**
-- Equal: `a = b`
-- Not equal: `a <> b`
-- Less than: `a < b`
-- Less or equal: `a <= b`
-- Greater than: `a > b`
-- Greater or equal: `a >= b`
-
-### Type Cast
-
-```pascal
-var
-  x: int := 42;
-  y: double;
-begin
-  y := double(x);
-end;
-```
-
-### Operator Precedence (Highest to Lowest)
-
-1. `@` (address-of), `^` (dereference), `not`
-2. `*` `/` `div` `mod` `shl` `shr` `and`
-3. `+` `-` `or` `xor`
-4. `=` `<>` `<` `<=` `>` `>=`
-
-## Parameter Passing
-
-### By Value (Default)
-
-```pascal
-routine test(x: int);
-begin
-  x := x + 1;  // Modifies local copy only
-end;
-```
-
-### By Const Reference
-
-```pascal
-routine test(const x: int);
-begin
-  // x := x + 1;  // ✗ Error - cannot modify const
-  writeLn(x);
-end;
-```
-
-For large types (records, arrays), `const` uses C++ const reference.
-
-### By Reference (var)
-
-```pascal
-routine increment(var x: int);
-begin
-  x := x + 1;  // Modifies caller's variable
-end;
-```
-
-### By Reference (out)
-
-```pascal
-routine getValue(out result: int);
-begin
-  result := 42;
-end;
-```
-
-**Note:** `out` is semantically the same as `var` in v1.0.
-
-### Variadic Parameters
-
-```pascal
-extern <stdio.h> routine printf(format: ^char; ...): int;
-```
-
-The `...` indicates variadic parameters (C-style).
 
 ---
 
-# 5. Compiler Directives
+## 6. Language Reference
 
-## Directives Overview
+### 6.1 Program Structure
 
-Compiler directives control how NitroPascal transpiles and builds your code. They are specified at the top of your source file using the `$` prefix followed by the directive name and a quoted value.
+#### Basic Program
 
-**Syntax:**
 ```pascal
-$directive "value"
-```
-
-**Example:**
-```pascal
-$target "x86_64-windows"
-$optimize "release_fast"
-
-program MyApp;
+program ProgramName;
 begin
   // Your code here
+  WriteLn('Hello, World!');
 end.
 ```
 
-**Rules:**
-- Must appear **before** `program`, `module`, or `library` keyword
-- Directive names are case-insensitive
-- Values must be enclosed in double quotes
-- Multiple directives can appear in any order
-
-## $target Directive
-
-Specifies the target platform for cross-compilation.
-
-### Syntax
-```pascal
-$target "<arch>-<os>[-<abi>]"
-$target "native"
-```
-
-### Values
-
-**Special:**
-- `"native"` - Build for current platform (default)
-
-**Format:** `<arch>-<os>[-<abi>]`
-
-**Supported Architectures:**
-```
-x86_64, x86, aarch64, arm, armeb, aarch64_be, aarch64_32,
-arc, avr, bpfel, bpfeb, csky, dxil, hexagon, loongarch32,
-loongarch64, m68k, mips, mipsel, mips64, mips64el, msp430,
-nvptx, nvptx64
-```
-
-**Supported Operating Systems:**
-```
-windows, linux, macos, freebsd, netbsd, openbsd, dragonfly,
-wasi, emscripten, cuda, opencl, glsl, vulkan, metal,
-amdhsa, ps4, ps5, elfiamcu, tvos, watchos, driverkit,
-mesa3d, contiki, aix
-```
-
-**Supported ABIs:**
-```
-gnu, musl, msvc, android, eabi, eabihf, ilp32, simulator
-```
-
-### Examples
+#### Program with Variables
 
 ```pascal
-$target "native"                 // Current platform
-$target "x86_64-windows"         // 64-bit Windows
-$target "x86_64-linux"           // 64-bit Linux
-$target "aarch64-macos"          // Apple Silicon macOS
-$target "aarch64-linux-gnu"      // ARM64 Linux with GNU libc
-$target "x86_64-linux-musl"      // x86_64 Linux with musl libc
-$target "wasm32-wasi"            // WebAssembly with WASI
-```
-
-### Validation
-
-Invalid targets produce compile errors:
-
-```pascal
-$target "invalid-platform"  // ✗ Error: Invalid Zig target
-$target "x86_64"            // ✗ Error: Missing OS component
-```
-
-## $optimize Directive
-
-Controls compiler optimization and safety checks.
-
-### Syntax
-```pascal
-$optimize "mode"
-```
-
-### Values
-
-| Mode | Speed | Size | Safety | Debug Info | Use Case |
-|------|-------|------|--------|------------|----------|
-| `"debug"` | Slowest | Largest | Full | Yes | Development (default) |
-| `"release_safe"` | Fast | Medium | Full | No | Production |
-| `"release_fast"` | Fastest | Medium | Minimal | No | Performance-critical |
-| `"release_small"` | Fast | Smallest | Minimal | No | Embedded/Size-constrained |
-
-### Examples
-
-```pascal
-$optimize "debug"          // Development build
-$optimize "release_safe"   // Production with safety
-$optimize "release_fast"   // Maximum performance
-$optimize "release_small"  // Minimal binary size
-```
-
-### Default
-
-If not specified, defaults to `"debug"`.
-
-## $exceptions Directive
-
-Enables or disables C++ exception handling.
-
-### Syntax
-```pascal
-$exceptions "on|off"
-```
-
-### Values
-- `"off"` - Disable exceptions (default, smaller/faster code)
-- `"on"` - Enable exceptions (required for try/catch)
-
-### Examples
-
-```pascal
-$exceptions "off"  // Default: -fno-exceptions
-$exceptions "on"   // Enables C++ exceptions
-```
-
-### Note
-
-Disabling exceptions reduces code size and improves performance, but you cannot use try/catch/throw.
-
-## $strip_symbols Directive
-
-Controls whether debug symbols are stripped from the final binary.
-
-### Syntax
-```pascal
-$strip_symbols "on|off"
-```
-
-### Values
-- `"off"` - Keep debug symbols (default)
-- `"on"` - Strip debug symbols (smaller binaries)
-
-### Examples
-
-```pascal
-$strip_symbols "off"  // Keep symbols for debugging
-$strip_symbols "on"   // Strip for release builds
-```
-
-### Effect
-
-Can significantly reduce binary size (30-50% reduction typical).
-
-## $module_path Directive
-
-Adds directories to search for imported NitroPascal modules.
-
-### Syntax
-```pascal
-$module_path "path1;path2;path3"
-```
-
-### Format
-
-Semicolon-separated list of paths (relative or absolute).
-
-### Examples
-
-```pascal
-$module_path "C:\MyModules"
-$module_path "lib;shared;../common"
-$module_path "/usr/local/np/modules"
-```
-
-### Behavior
-
-- Multiple `$module_path` directives are cumulative
-- Paths can be relative or absolute
-- Searched in order when resolving `import` statements
-
-### Multiple Directives
-
-```pascal
-$module_path "lib"
-$module_path "shared"
-$module_path "../common"
-```
-
-Equivalent to:
-```pascal
-$module_path "lib;shared;../common"
-```
-
-## $include_path Directive
-
-Adds directories to search for C/C++ header files referenced in `extern` declarations.
-
-### Syntax
-```pascal
-$include_path "path1;path2;path3"
-```
-
-### Examples
-
-```pascal
-$include_path "C:\Libraries\include"
-$include_path "vendor/SDL2/include;vendor/opengl"
-```
-
-### Use Case
-
-When using C libraries via `extern <header.h>`.
-
-## $library_path Directive
-
-Adds directories to search for system libraries during linking.
-
-### Syntax
-```pascal
-$library_path "path1;path2;path3"
-```
-
-### Examples
-
-```pascal
-$library_path "C:\Libraries\lib"
-$library_path "/usr/local/lib;/opt/libs"
-```
-
-## $link_library Directive
-
-Specifies system libraries to link against.
-
-### Syntax
-```pascal
-$link_library "lib1;lib2;lib3"
-```
-
-### Format
-
-Library name (without `lib` prefix or extension).
-
-### Examples
-
-```pascal
-$link_library "SDL2"
-$link_library "opengl32;gdi32;user32"
-$link_library "m;pthread"
-```
-
-### Platform Notes
-
-- **Windows:** Links `library.lib` or `library.dll`
-- **Linux/macOS:** Links `liblibrary.so` or `liblibrary.a`
-
-## Complete Example
-
-```pascal
-// Cross-compile for Linux with full optimization
-$target "x86_64-linux-gnu"
-$optimize "release_fast"
-$strip_symbols "on"
-
-// Link against system libraries
-$link_library "m;pthread"
-
-// Add custom module paths
-$module_path "lib;shared"
-
-program MyLinuxApp;
-
-extern <math.h> routine sqrt(x: double): double;
+program Variables;
+
+var
+  X: Integer;
+  Y: Double;
+  Name: String;
 
 begin
-  printf("Square root of 16 is: %f\n", sqrt(16.0));
-  ExitCode := 0;
+  X := 10;
+  Y := 3.14;
+  Name := 'NitroPascal';
+  
+  WriteLn('X = ', X);
+  WriteLn('Y = ', Y:0:2);
+  WriteLn('Name = ', Name);
 end.
 ```
 
-## Directive Validation
+#### Program with Constants
 
-All directive values are validated at parse time:
+```pascal
+program Constants;
 
-- **`$target`:** Must be a valid Zig target triple or `"native"`
-- **`$optimize`:** Must be one of: `debug`, `release_safe`, `release_fast`, `release_small`
-- **`$exceptions`/`$strip_symbols`:** Must be `on` or `off`
-- **Path directives:** Paths are not validated until build time
+const
+  PI = 3.14159265;
+  APP_NAME = 'MyApp';
+  MAX_USERS = 100;
 
-**Invalid directives will cause compilation to fail with a helpful error message.**
+var
+  Radius: Double;
+  Area: Double;
+
+begin
+  Radius := 5.0;
+  Area := PI * Radius * Radius;
+  WriteLn('Area of circle: ', Area:0:2);
+end.
+```
+
+#### Program with Functions
+
+```pascal
+program Functions;
+
+function Add(A, B: Integer): Integer;
+begin
+  Result := A + B;
+end;
+
+function Multiply(A, B: Integer): Integer;
+begin
+  Result := A * B;
+end;
+
+var
+  Sum: Integer;
+  Product: Integer;
+
+begin
+  Sum := Add(5, 7);
+  Product := Multiply(5, 7);
+  
+  WriteLn('5 + 7 = ', Sum);
+  WriteLn('5 * 7 = ', Product);
+end.
+```
+
+### 6.2 Data Types
+
+#### Integer Types
+
+```pascal
+var
+  I: Integer;      // 32-bit signed (-2,147,483,648 to 2,147,483,647)
+  C: Cardinal;     // 32-bit unsigned (0 to 4,294,967,295)
+  B: Byte;         // 8-bit unsigned (0 to 255)
+  W: Word;         // 16-bit unsigned (0 to 65,535)
+  I64: Int64;      // 64-bit signed
+  
+begin
+  I := -100;
+  C := 200;
+  B := 255;
+  W := 65535;
+  I64 := 9223372036854775807;
+end.
+```
+
+#### Floating-Point Types
+
+```pascal
+var
+  S: Single;       // 32-bit float (IEEE 754)
+  D: Double;       // 64-bit float (IEEE 754)
+  
+begin
+  S := 3.14;
+  D := 3.141592653589793;
+  
+  WriteLn('Single: ', S:0:2);
+  WriteLn('Double: ', D:0:15);
+end.
+```
+
+#### Boolean Type
+
+```pascal
+var
+  Flag: Boolean;
+  
+begin
+  Flag := True;
+  
+  if Flag then
+    WriteLn('Flag is true')
+  else
+    WriteLn('Flag is false');
+end.
+```
+
+#### Character and String Types
+
+```pascal
+var
+  Ch: Char;        // UTF-16 character
+  Str: String;     // UTF-16 string (1-based indexing)
+  
+begin
+  Ch := 'A';
+  Str := 'Hello, NitroPascal!';
+  
+  WriteLn('Character: ', Ch);
+  WriteLn('String: ', Str);
+  WriteLn('Length: ', Length(Str));
+  WriteLn('First char: ', Str[1]);  // 1-based!
+end.
+```
+
+### 6.3 Control Flow
+
+#### If-Then-Else
+
+```pascal
+var
+  Age: Integer;
+
+begin
+  Age := 25;
+  
+  if Age < 18 then
+    WriteLn('Minor')
+  else if Age < 65 then
+    WriteLn('Adult')
+  else
+    WriteLn('Senior');
+end.
+```
+
+#### For Loops
+
+```pascal
+var
+  I: Integer;
+
+begin
+  // For-to loop (ascending)
+  for I := 1 to 10 do
+    WriteLn('Count: ', I);
+  
+  WriteLn('');
+  
+  // For-downto loop (descending)
+  for I := 10 downto 1 do
+    WriteLn('Countdown: ', I);
+end.
+```
+
+#### While Loops
+
+```pascal
+var
+  Count: Integer;
+
+begin
+  Count := 1;
+  
+  while Count <= 5 do
+  begin
+    WriteLn('Count: ', Count);
+    Count := Count + 1;
+  end;
+end.
+```
+
+#### Repeat-Until Loops
+
+```pascal
+var
+  Count: Integer;
+
+begin
+  Count := 1;
+  
+  repeat
+    WriteLn('Count: ', Count);
+    Count := Count + 1;
+  until Count > 5;
+end.
+```
+
+#### Case Statements
+
+```pascal
+var
+  Day: Integer;
+
+begin
+  Day := 3;
+  
+  case Day of
+    1: WriteLn('Monday');
+    2: WriteLn('Tuesday');
+    3: WriteLn('Wednesday');
+    4: WriteLn('Thursday');
+    5: WriteLn('Friday');
+    6: WriteLn('Saturday');
+    7: WriteLn('Sunday');
+  else
+    WriteLn('Invalid day');
+  end;
+end.
+```
+
+### 6.4 Procedures and Functions
+
+#### Procedures
+
+```pascal
+procedure Greet(Name: String);
+begin
+  WriteLn('Hello, ', Name, '!');
+end;
+
+begin
+  Greet('Alice');
+  Greet('Bob');
+end.
+```
+
+#### Functions
+
+```pascal
+function Square(X: Integer): Integer;
+begin
+  Result := X * X;
+end;
+
+function IsEven(N: Integer): Boolean;
+begin
+  Result := (N mod 2) = 0;
+end;
+
+var
+  Value: Integer;
+
+begin
+  Value := Square(5);
+  WriteLn('Square of 5: ', Value);
+  
+  if IsEven(10) then
+    WriteLn('10 is even');
+end.
+```
+
+#### Parameters
+
+```pascal
+// By value (default)
+procedure ByValue(X: Integer);
+begin
+  X := X + 1;  // Changes local copy only
+end;
+
+// By reference (var)
+procedure ByReference(var X: Integer);
+begin
+  X := X + 1;  // Changes original variable
+end;
+
+// Const parameters (recommended for efficiency)
+procedure UseConst(const Str: String);
+begin
+  WriteLn(Str);  // Can read but not modify
+end;
+
+var
+  N: Integer;
+
+begin
+  N := 10;
+  ByValue(N);
+  WriteLn('After ByValue: ', N);      // Still 10
+  
+  ByReference(N);
+  WriteLn('After ByReference: ', N);  // Now 11
+end.
+```
+
+### 6.5 Records (Structures)
+
+#### Basic Records
+
+```pascal
+type
+  TPoint = record
+    X: Integer;
+    Y: Integer;
+  end;
+
+var
+  P: TPoint;
+
+begin
+  P.X := 10;
+  P.Y := 20;
+  
+  WriteLn('Point: (', P.X, ', ', P.Y, ')');
+end.
+```
+
+#### Records with Functions
+
+```pascal
+type
+  TRectangle = record
+    Width: Integer;
+    Height: Integer;
+  end;
+
+function CalculateArea(const R: TRectangle): Integer;
+begin
+  Result := R.Width * R.Height;
+end;
+
+var
+  Rect: TRectangle;
+
+begin
+  Rect.Width := 10;
+  Rect.Height := 20;
+  
+  WriteLn('Area: ', CalculateArea(Rect));
+end.
+```
+
+### 6.6 Arrays
+
+#### Static Arrays
+
+```pascal
+var
+  Numbers: array[0..4] of Integer;
+  I: Integer;
+
+begin
+  Numbers[0] := 10;
+  Numbers[1] := 20;
+  Numbers[2] := 30;
+  Numbers[3] := 40;
+  Numbers[4] := 50;
+  
+  for I := 0 to 4 do
+    WriteLn('Numbers[', I, '] = ', Numbers[I]);
+end.
+```
+
+#### Dynamic Arrays
+
+```pascal
+var
+  Numbers: array of Integer;
+  I: Integer;
+
+begin
+  SetLength(Numbers, 5);
+  
+  for I := 0 to 4 do
+    Numbers[I] := I * 10;
+  
+  for I := 0 to Length(Numbers) - 1 do
+    WriteLn('Numbers[', I, '] = ', Numbers[I]);
+end.
+```
+
+### 6.7 Operators
+
+#### Arithmetic Operators
+
+```pascal
+var
+  A, B: Integer;
+  X, Y: Double;
+
+begin
+  A := 10;
+  B := 3;
+  
+  WriteLn('Addition: ', A + B);        // 13
+  WriteLn('Subtraction: ', A - B);     // 7
+  WriteLn('Multiplication: ', A * B);  // 30
+  WriteLn('Float Division: ', A / B);  // 3.333...
+  WriteLn('Integer Division: ', A div B); // 3
+  WriteLn('Modulo: ', A mod B);        // 1
+end.
+```
+
+#### Comparison Operators
+
+```pascal
+var
+  A, B: Integer;
+
+begin
+  A := 10;
+  B := 20;
+  
+  WriteLn('A = B: ', A = B);   // False
+  WriteLn('A <> B: ', A <> B); // True
+  WriteLn('A < B: ', A < B);   // True
+  WriteLn('A > B: ', A > B);   // False
+  WriteLn('A <= B: ', A <= B); // True
+  WriteLn('A >= B: ', A >= B); // False
+end.
+```
+
+#### Logical Operators
+
+```pascal
+var
+  P, Q: Boolean;
+
+begin
+  P := True;
+  Q := False;
+  
+  WriteLn('P and Q: ', P and Q);   // False
+  WriteLn('P or Q: ', P or Q);     // True
+  WriteLn('not P: ', not P);       // False
+  WriteLn('P xor Q: ', P xor Q);   // True
+end.
+```
+
+#### Bitwise Operators
+
+```pascal
+var
+  A, B: Integer;
+
+begin
+  A := 12;  // 1100 in binary
+  B := 10;  // 1010 in binary
+  
+  WriteLn('A and B: ', A and B);   // 8 (1000)
+  WriteLn('A or B: ', A or B);     // 14 (1110)
+  WriteLn('A xor B: ', A xor B);   // 6 (0110)
+  WriteLn('not A: ', not A);       // -13
+  WriteLn('A shl 1: ', A shl 1);   // 24 (left shift)
+  WriteLn('A shr 1: ', A shr 1);   // 6 (right shift)
+end.
+```
 
 ---
 
-# 6. Conditional Compilation
+## 7. Compiler Directives
 
-## Conditional Overview
+Compiler directives allow you to control build settings directly in your Pascal source code using special comments.
 
-NitroPascal supports C-style preprocessor directives for conditional compilation. This allows you to include or exclude code blocks based on defined symbols, enabling platform-specific code, feature flags, and debug/release configurations.
+### 7.1 Directive Syntax
 
-## Preprocessor Directives
+Directives use the format: `{$directive value}`
 
-### #define
+**Rules:**
+- Must start with `{$`
+- Case-insensitive directive names
+- Values can be quoted or unquoted
+- Both single and double quotes supported
+- Processed before compilation (preprocessing phase)
 
-Defines a symbol. Once defined, the symbol can be tested with `#ifdef`.
+**Examples:**
+```pascal
+{$optimization ReleaseFast}
+{$optimization "ReleaseFast"}
+{$optimization 'ReleaseFast'}
+```
+
+All three formats are equivalent.
+
+### 7.2 Optimization Directive
+
+Controls the optimization level for the build.
 
 **Syntax:**
 ```pascal
-#define SYMBOL_NAME
+{$optimization <mode>}
 ```
+
+**Modes:**
+
+| Mode | Description | Use Case |
+|------|-------------|----------|
+| `Debug` | No optimization, all safety checks | Development, debugging |
+| `ReleaseSafe` | Optimized with safety checks | Production with runtime checks |
+| `ReleaseFast` | Fully optimized, minimal safety | Maximum performance |
+| `ReleaseSmall` | Optimized for binary size | Embedded systems, small binaries |
 
 **Example:**
 ```pascal
-#define DEBUG
-#define WINDOWS_BUILD
+program OptimizedApp;
+
+{$optimization ReleaseFast}
+
+begin
+  WriteLn('Running in ReleaseFast mode');
+end.
 ```
 
-**Characteristics:**
-- Symbols are case-sensitive (`DEBUG` ≠ `debug`)
-- Symbols are boolean flags (defined or not defined)
-- No value assignment (use constants for values)
+**Generated build.zig:**
+```zig
+const optimize = .ReleaseFast;
+```
 
-### #undef
+---
 
-Undefines a previously defined symbol.
+### 7.3 Target Directive
+
+Specifies the compilation target platform.
 
 **Syntax:**
 ```pascal
-#undef SYMBOL_NAME
+{$target <triple>}
 ```
+
+**Common Targets:**
+
+| Target | Platform |
+|--------|----------|
+| `native` | Current platform (default) |
+| `x86_64-windows` | Windows 64-bit |
+| `x86_64-linux` | Linux 64-bit |
+| `x86_64-macos` | macOS 64-bit |
+| `aarch64-linux` | ARM64 Linux |
+| `aarch64-macos` | ARM64 macOS (Apple Silicon) |
+| `wasm32-wasi` | WebAssembly |
 
 **Example:**
-```pascal
-#define DEBUG
-// ... code ...
-#undef DEBUG  // DEBUG is no longer defined
-```
-
-### #ifdef
-
-Includes the following code block only if the symbol is defined.
-
-**Syntax:**
-```pascal
-#ifdef SYMBOL_NAME
-  // code included if SYMBOL_NAME is defined
-#endif
-```
-
-**Example:**
-```pascal
-#ifdef DEBUG
-  extern <stdio.h> routine printf(format: ^char; ...): int;
-  routine Log(const msg: ^char);
-  begin
-    printf("[DEBUG] %s\n", msg);
-  end;
-#endif
-```
-
-### #ifndef
-
-Includes the following code block only if the symbol is NOT defined.
-
-**Syntax:**
-```pascal
-#ifndef SYMBOL_NAME
-  // code included if SYMBOL_NAME is not defined
-#endif
-```
-
-**Example:**
-```pascal
-#ifndef PRODUCTION
-  extern <stdio.h> routine printf(format: ^char; ...): int;
-  routine DevLog(const msg: ^char);
-  begin
-    printf("[DEV] %s\n", msg);
-  end;
-#endif
-```
-
-### #else
-
-Provides an alternative code block when the condition is false.
-
-**Syntax:**
-```pascal
-#ifdef SYMBOL_NAME
-  // code if defined
-#else
-  // code if not defined
-#endif
-```
-
-**Example:**
-```pascal
-#ifdef WINDOWS
-  extern dll "kernel32.dll" stdcall routine Sleep(ms: uint);
-#else
-  extern <unistd.h> routine usleep(us: uint);
-#endif
-```
-
-### #endif
-
-Ends a conditional block started by `#ifdef` or `#ifndef`.
-
-**Syntax:**
-```pascal
-#ifdef SYMBOL_NAME
-  // conditional code
-#endif
-```
-
-## Conditional Examples
-
-### Platform-Specific Code
-
 ```pascal
 program CrossPlatform;
 
-#define WINDOWS
-
-extern <stdio.h> routine printf(format: ^char; ...): int;
-
-routine ClearScreen();
-begin
-  #ifdef WINDOWS
-    extern dll "kernel32.dll" routine system(const cmd: ^char): int;
-    system("cls");
-  #else
-    extern <stdlib.h> routine system(const cmd: ^char): int;
-    system("clear");
-  #endif
-end;
+{$target x86_64-linux}
 
 begin
-  ClearScreen();
-  printf("Platform: ");
-  #ifdef WINDOWS
-    printf("Windows\n");
-  #else
-    printf("Unix/Linux\n");
-  #endif
+  WriteLn('Compiled for Linux x86_64');
 end.
 ```
 
-### Debug vs Release Builds
-
-```pascal
-module Logger;
-
-#define DEBUG
-
-extern <stdio.h> routine printf(format: ^char; ...): int;
-extern <stdlib.h> routine exit(code: int);
-
-public routine Log(const msg: ^char);
-begin
-  #ifdef DEBUG
-    printf("[DEBUG] %s\n", msg);
-  #endif
-  // Release build: routine does nothing
-end;
-
-public routine Assert(const condition: int; const msg: ^char);
-begin
-  #ifdef DEBUG
-    if condition = 0 then
-    begin
-      printf("[ASSERT FAILED] %s\n", msg);
-      exit(1);
-    end;
-  #endif
-  // Release build: assertions removed
-end;
-
-end.
-```
-
-### Feature Flags
-
-```pascal
-module GameEngine;
-
-#define FEATURE_MULTIPLAYER
-#define FEATURE_ACHIEVEMENTS
-// #define FEATURE_VR  // Commented out - not ready yet
-
-extern <stdio.h> routine printf(format: ^char; ...): int;
-
-public routine InitializeEngine();
-begin
-  printf("Initializing Game Engine...\n");
-  
-  #ifdef FEATURE_MULTIPLAYER
-    printf("Multiplayer: Enabled\n");
-  #endif
-  
-  #ifdef FEATURE_ACHIEVEMENTS
-    printf("Achievements: Enabled\n");
-  #endif
-  
-  #ifdef FEATURE_VR
-    printf("VR: Enabled\n");
-  #endif
-end;
-
-end.
-```
-
-### Nested Conditionals
-
-```pascal
-program ConfigExample;
-
-#define PLATFORM_WINDOWS
-#define BUILD_TYPE_DEBUG
-
-extern <stdio.h> routine printf(format: ^char; ...): int;
-
-const
-  #ifdef PLATFORM_WINDOWS
-    #ifdef BUILD_TYPE_DEBUG
-      LOG_LEVEL: int = 4; // Verbose
-    #else
-      LOG_LEVEL: int = 1; // Errors only
-    #endif
-  #else
-    #ifdef BUILD_TYPE_DEBUG
-      LOG_LEVEL: int = 3; // Info
-    #else
-      LOG_LEVEL: int = 0; // Silent
-    #endif
-  #endif
-
-begin
-  printf("Log Level: %d\n", LOG_LEVEL);
-end.
-```
-
-## Conditional Best Practices
-
-### 1. Use Descriptive Symbol Names
-
-```pascal
-// Good
-#define ENABLE_LOGGING
-#define TARGET_RASPBERRY_PI
-#define USE_HARDWARE_ACCELERATION
-
-// Avoid
-#define X
-#define FLAG1
-#define A
-```
-
-### 2. Document Symbols at the Top
-
-```pascal
-program MyApp;
-
-// Compilation Configuration:
-// #define DEBUG        - Enable debug output and assertions
-// #define TESTING      - Include test routines
-// #define USE_OPENGL   - Use OpenGL renderer (default: Vulkan)
-
-#define DEBUG
-#define TESTING
-
-// ... rest of code
-```
-
-### 3. Group Related Conditionals
-
-```pascal
-// Platform detection
-#ifdef WINDOWS
-  // Windows-specific code
-#endif
-
-#ifdef LINUX
-  // Linux-specific code
-#endif
-
-#ifdef MACOS
-  // macOS-specific code
-#endif
-```
-
-### 4. Avoid Deep Nesting
-
-```pascal
-// Avoid
-#ifdef A
-  #ifdef B
-    #ifdef C
-      #ifdef D
-        // too deep!
-      #endif
-    #endif
-  #endif
-#endif
-
-// Better: flatten with early returns or separate routines
-```
-
-### 5. Keep Conditional Blocks Small
-
-```pascal
-// Good: small, focused conditionals
-#ifdef DEBUG
-  printf("Debug info\n");
-#endif
-
-// Avoid: large blocks that duplicate logic
-#ifdef DEBUG
-  // 100 lines of code
-#else
-  // 100 similar lines with minor differences
-#endif
-```
-
-## Conditional Compilation Characteristics
-
-### Zero Runtime Overhead
-
-Code in false conditional blocks is **completely skipped** during parsing and never enters the AST:
-
-```pascal
-#ifdef NEVER_DEFINED
-  // This code is never parsed
-  // No tokens generated
-  // No AST nodes created
-  // Zero runtime cost
-#endif
-```
-
-### Parser-Level Processing
-
-Preprocessor directives are processed **during tokenization**:
-
-1. Lexer encounters `#ifdef SYMBOL`
-2. Checks if `SYMBOL` is defined
-3. If false, skips all tokens until `#else` or `#endif`
-4. Parser never sees the skipped code
-
-### Limitations
-
-#### 1. No Expression Evaluation
-
-Only boolean checks (defined or not defined):
-
-```pascal
-// NOT SUPPORTED:
-#ifdef (WINDOWS and DEBUG)      // ✗ Error
-#ifdef WINDOWS || LINUX         // ✗ Error
-#ifdef VERSION >= 2             // ✗ Error
-
-// Supported:
-#ifdef WINDOWS                  // ✓ OK
-  #ifdef DEBUG                  // ✓ OK - use nesting
-    // code
-  #endif
-#endif
-```
-
-#### 2. Symbols Have No Values
-
-Symbols are boolean flags only:
-
-```pascal
-#define VERSION 2               // ✗ Error - cannot assign value
-#define VERSION                 // ✓ OK - symbol is just defined
-
-const VERSION: int = 2;         // ✓ Use const for values
-```
-
-#### 3. No Macro Substitution
-
-`#define` does not support text replacement:
-
-```pascal
-#define MAX_SIZE 1024           // ✗ Not a macro
-const MAX_SIZE: int = 1024;     // ✓ Use const instead
-```
-
-#### 4. Must Match Structure
-
-Conditional blocks must respect language structure:
-
-```pascal
-// ✗ Error - splits routine declaration
-routine MyRoutine(
-  #ifdef FEATURE_A
-    const paramA: int
-  #endif
-): int;
-
-// ✓ OK - complete routine conditionally compiled
-#ifdef FEATURE_A
-  routine MyRoutine(const paramA: int): int;
-  begin
-    return paramA * 2;
-  end;
-#endif
-```
-
----
-
-# 7. External Interop
-
-## C/C++ Integration
-
-NitroPascal can call C and C++ functions via `extern` declarations.
-
-### Syntax
-
-```ebnf
-ExternDecl = "extern" ExternalSource "routine" Identifier 
-             "(" [ ParameterList ] ")" [ ":" Type ] [ "as" StringLiteral ] ";" .
-
-ExternalSource = "<" Identifier ">"                    (* System header *)
-               | StringLiteral                         (* Local header *)
-               | "dll" StringLiteral [ CallConv ]      (* DLL/shared library *) .
-```
-
-## System Headers
-
-```pascal
-extern <stdio.h> routine printf(format: ^char; ...): int;
-extern <stdlib.h> routine malloc(size: uint64): pointer;
-extern <stdlib.h> routine free(ptr: pointer);
-extern <math.h> routine sqrt(x: double): double;
-extern <string.h> routine strlen(s: ^char): uint64;
-```
-
-Transpiles to:
-```cpp
-#include <stdio.h>
-#include <stdlib.h>
-#include <math.h>
-#include <string.h>
-
-extern "C" {
-  int printf(const char* format, ...);
-  void* malloc(size_t size);
-  void free(void* ptr);
-  double sqrt(double x);
-  size_t strlen(const char* s);
-}
-```
-
-## Local Headers
-
-```pascal
-extern "MyEngine.h" routine initEngine(): bool;
-extern "MyEngine.h" routine updateEngine(dt: double);
-```
-
-Transpiles to:
-```cpp
-#include "MyEngine.h"
-
-extern "C" {
-  bool initEngine();
-  void updateEngine(double dt);
-}
-```
-
-## DLL/Shared Libraries
-
-```pascal
-extern dll "user32.dll" stdcall routine MessageBoxA(
-  hwnd: pointer;
-  const text: ^char;
-  const caption: ^char;
-  type: uint
-): int;
-
-extern dll "libmylib.so" routine processData(const data: ^byte; len: uint64): int;
-```
-
-**Windows:**
-```cpp
-#include <windows.h>
-
-__declspec(dllimport) int __stdcall MessageBoxA(
-  void* hwnd,
-  const char* text,
-  const char* caption,
-  unsigned int type
-);
-```
-
-## Calling Conventions
-
-### stdcall
-- **Windows standard call**
-- Callee cleans stack
-- Common in Win32 API
-
-```pascal
-extern dll "kernel32.dll" stdcall routine GetCurrentProcessId(): uint;
-```
-
-### cdecl
-- **C declaration** (default)
-- Caller cleans stack
-- Standard C calling convention
-
-```pascal
-extern dll "mylib.dll" cdecl routine compute(const x: int): int;
-```
-
-### fastcall
-- **Fast call**
-- Registers used for parameters
-- Compiler-specific optimizations
-
-```pascal
-extern dll "fastlib.dll" fastcall routine quickOp(const a, b: int): int;
-```
-
-## Function Aliasing
-
-Map NitroPascal names to different C function names:
-
-```pascal
-extern dll "legacy.dll" routine myAdd(const a, b: int): int as "LegacyAddFunction";
-```
-
-The NitroPascal name is `myAdd`, but it calls the DLL function `LegacyAddFunction`.
-
-## Variadic Functions
-
-```pascal
-extern <stdio.h> routine printf(format: ^char; ...): int;
-extern <stdarg.h> routine vprintf(format: ^char; args: pointer): int;
-```
-
-The `...` indicates variadic parameters (like C).
-
-## Complete Interop Example
-
-```pascal
-program SystemInterop;
-
-// Standard C library functions
-extern <stdio.h> routine printf(format: ^char; ...): int;
-extern <stdlib.h> routine malloc(size: uint64): pointer;
-extern <stdlib.h> routine free(ptr: pointer);
-extern <string.h> routine strlen(s: ^char): uint64;
-extern <string.h> routine strcpy(dest, src: ^char): ^char;
-
-// Windows API functions
-#ifdef WINDOWS
-  extern dll "kernel32.dll" stdcall routine GetCurrentProcessId(): uint;
-  extern dll "kernel32.dll" stdcall routine Sleep(ms: uint);
-#else
-  extern <unistd.h> routine getpid(): uint;
-  extern <unistd.h> routine usleep(us: uint);
-#endif
-
-var
-  buffer: ^char;
-  message: ^char := "Hello from NitroPascal!";
-  len: uint64;
-  pid: uint;
-
-begin
-  // String operations
-  len := strlen(message);
-  printf("Message length: %llu\n", len);
-  
-  // Memory allocation
-  buffer := malloc(len + 1);
-  strcpy(buffer, message);
-  printf("Copied: %s\n", buffer);
-  free(buffer);
-  
-  // Platform-specific operations
-  #ifdef WINDOWS
-    pid := GetCurrentProcessId();
-    printf("Process ID: %u\n", pid);
-    Sleep(1000);
-  #else
-    pid := getpid();
-    printf("Process ID: %u\n", pid);
-    usleep(1000000);
-  #endif
-  
-  ExitCode := 0;
-end.
-```
-
----
-
-# 8. Architecture & Internals
-
-## Compilation Pipeline
-
-### High-Level Flow
-
-```
-User Pascal Code (.pas files)
-    ↓
-[Scanner] → Discovers units and dependencies
-    ↓
-[Dependency Graph] → Determines build order
-    ↓
-[Lexer] → Tokenization + Preprocessing
-    ↓
-[Parser] → AST Generation
-    ↓
-[Symbol Table Builder] → Semantic Analysis
-    ↓
-[Module Resolver] → Import Resolution
-    ↓
-[Code Generator] → C++ Emission
-    ↓
-[Project Manager] → Updates build.zig
-    ↓
-Zig Build System → Compiles to native executable
-```
-
-### Detailed Process
-
-#### 1. Initialization
-
-```
-nitro init MyProject
-  ↓
-Creates directory structure:
-  - src/
-  - generated/
-  - build.zig
-```
-
-#### 2. Scanning (Module Discovery)
-
-```
+**For multiple targets, build separately:**
+```bash
+# Edit source to set target, then build
 nitro build
-  ↓
-Scanner.ScanDirectory("src/")
-  ↓
-Finds: MyProject.pas, Utils.pas, Config.pas
-  ↓
-For each .pas file:
-  - Extract module name
-  - Extract import declarations
-  - Build TUnitInfo catalog
 ```
 
-#### 3. Dependency Resolution
+---
 
-```
-DependencyGraph.BuildGraph(units)
-  ↓
-Create edges from import statements
-  ↓
-Detect circular dependencies (error if found)
-  ↓
-Topological sort → build order
-  ↓
-Order: [Config, Utils, MyProject]
-```
+### 7.4 Exceptions Directive
 
-#### 4. Lexical Analysis
+Controls C++ exception handling.
 
-```
-For each unit in build order:
-  ↓
-Lexer.Create(source, filename)
-  ↓
-Process preprocessor directives:
-  - #define, #undef
-  - #ifdef, #ifndef, #else, #endif
-  ↓
-Skip inactive conditional blocks
-  ↓
-Generate token stream
-  ↓
-Collect compiler directives ($target, $optimize, etc.)
-```
-
-#### 5. Parsing
-
-```
-Parser.Create(lexer)
-  ↓
-Parse based on compilation mode:
-  - program → TNPProgramNode
-  - module → TNPModuleNode
-  - library → TNPLibraryNode
-  ↓
-Recursive descent parsing
-  ↓
-Generate Abstract Syntax Tree (AST)
-```
-
-#### 6. Symbol Table Building
-
-```
-SymbolTableBuilder.Build(ast, moduleName)
-  ↓
-Walk AST nodes
-  ↓
-Create symbol entries:
-  - Types
-  - Constants
-  - Variables
-  - Routines
-  ↓
-Track visibility (public/private)
-  ↓
-Detect duplicate symbols
-```
-
-#### 7. Code Generation
-
-```
-CodeGenerator.Generate(ast, moduleName)
-  ↓
-Walk AST nodes
-  ↓
-Emit C++ code:
-  - Header file (.h)
-  - Implementation file (.cpp)
-  ↓
-Map Pascal constructs → C++ equivalents
-  ↓
-Generate files in generated/
-```
-
-#### 8. Build Configuration
-
-```
-ProjectManager.UpdateBuildZig()
-  ↓
-Read build settings from directives
-  ↓
-Generate build.zig:
-  - List all .cpp files
-  - Set target triple
-  - Set optimization mode
-  - Configure libraries
-```
-
-#### 9. Native Compilation
-
-```
-Execute: zig build
-  ↓
-Zig compiles C++ → object files
-  ↓
-Link with C++ standard library
-  ↓
-Link system libraries
-  ↓
-Output: zig-out/bin/MyProject.exe
-```
-
-## AST Structure
-
-### Node Hierarchy
-
-```
-TNPASTNode (base class)
-├─ TNPProgramNode
-├─ TNPModuleNode
-├─ TNPLibraryNode
-├─ TNPImportNode
-├─ TNPExternNode
-├─ TNPTypeDeclNode
-├─ TNPConstDeclNode
-├─ TNPVarDeclNode
-├─ TNPRoutineDeclNode
-├─ TNPParameterNode
-├─ Type Nodes
-│  ├─ TNPRecordNode
-│  ├─ TNPEnumNode
-│  ├─ TNPArrayNode
-│  ├─ TNPPointerNode
-│  ├─ TNPSubrangeNode
-│  └─ TNPFunctionTypeNode
-├─ Statement Nodes
-│  ├─ TNPCompoundNode
-│  ├─ TNPAssignmentNode
-│  ├─ TNPIfNode
-│  ├─ TNPWhileNode
-│  ├─ TNPRepeatNode
-│  ├─ TNPForNode
-│  ├─ TNPCaseNode
-│  ├─ TNPBreakNode
-│  ├─ TNPContinueNode
-│  ├─ TNPReturnNode
-│  └─ TNPHaltNode
-└─ Expression Nodes
-   ├─ TNPBinaryOpNode
-   ├─ TNPUnaryOpNode
-   ├─ TNPCallNode
-   ├─ TNPMethodCallNode
-   ├─ TNPIndexNode
-   ├─ TNPFieldAccessNode
-   ├─ TNPDerefNode
-   ├─ TNPTypeCastNode
-   ├─ TNPIdentifierNode
-   ├─ Literal Nodes
-   │  ├─ TNPIntLiteralNode
-   │  ├─ TNPFloatLiteralNode
-   │  ├─ TNPStringLiteralNode
-   │  ├─ TNPCharLiteralNode
-   │  ├─ TNPBoolLiteralNode
-   │  └─ TNPNilLiteralNode
-   ├─ TNPArrayLiteralNode
-   └─ TNPRecordLiteralNode
-```
-
-### Key Node Properties
-
-**TNPProgramNode:**
-- `Name: string`
-- `Declarations: TNPASTNodeList`
-- `MainBlock: TNPASTNodeList`
-
-**TNPRoutineDeclNode:**
-- `RoutineName: string`
-- `Parameters: TNPASTNodeList`
-- `ReturnType: TNPASTNode`
-- `LocalVars: TNPASTNodeList`
-- `Body: TNPASTNodeList`
-- `IsPublic: Boolean`
-
-**TNPBinaryOpNode:**
-- `Left: TNPASTNode`
-- `Op: TNPTokenKind`
-- `Right: TNPASTNode`
-
-## Code Generation
-
-### Emitter Architecture
-
-The `TNPCodeGenerator` class walks the AST and emits C++ code:
-
-```delphi
-TNPCodeGenerator = class
-private
-  FHeaderCode: TStringBuilder;
-  FImplCode: TStringBuilder;
-  FSymbols: TNPSymbolTable;
-  FIndentLevel: Integer;
-  
-  procedure EmitH(const AText: string);      // Write to header
-  procedure EmitCpp(const AText: string);    // Write to impl
-  procedure IncIndent();
-  procedure DecIndent();
-  
-public
-  function Generate(const AAST: TNPASTNode; const AModuleName: string): Boolean;
-  function GetHeaderCode(): string;
-  function GetImplementationCode(): string;
-end;
-```
-
-### Translation Examples
-
-#### Program → main()
-
-**Pascal:**
+**Syntax:**
 ```pascal
-program MyApp;
-var x: int;
+{$exceptions on|off}
+```
+
+**Values:**
+- `on`, `true`, `yes`, `1` - Enable exceptions (default)
+- `off`, `false`, `no`, `0` - Disable exceptions
+
+**Example:**
+```pascal
+program NoExceptions;
+
+{$exceptions off}
+
 begin
-  x := 42;
-  ExitCode := 0;
+  WriteLn('Compiled without exception support');
 end.
 ```
 
-**C++:**
-```cpp
-#include <cstdint>
+**Why disable exceptions?**
+- Smaller binary size
+- Faster code (no exception handling overhead)
+- Embedded systems compatibility
 
-int32_t x;
+**Generated C++ flag:**
+```cpp
+const cpp_flags = [_][]const u8{
+    "-std=c++20",
+    "-fno-exceptions",  // Added when exceptions = off
+};
+```
+
+---
+
+### 7.5 Strip Directive
+
+Controls debug symbol stripping.
+
+**Syntax:**
+```pascal
+{$strip on|off}
+```
+
+**Values:**
+- `on`, `true`, `yes`, `1` - Strip debug symbols
+- `off`, `false`, `no`, `0` - Keep debug symbols (default)
+
+**Example:**
+```pascal
+program StrippedBinary;
+
+{$optimization ReleaseFast}
+{$strip on}
+
+begin
+  WriteLn('Minimal binary size');
+end.
+```
+
+**Effect:**
+- `on` - Smaller binary, no debugging info
+- `off` - Larger binary, full debugging support
+
+---
+
+### 7.6 Include Path Directive
+
+Adds directories to the include path for C++ compilation.
+
+**Syntax:**
+```pascal
+{$include_path <path>}
+```
+
+**Example:**
+```pascal
+program WithIncludes;
+
+{$include_path "../common/include"}
+{$include_path "C:/SDK/include"}
+
+begin
+  WriteLn('Custom includes loaded');
+end.
+```
+
+**Use case:** When using custom C++ headers or libraries.
+
+---
+
+### 7.7 Library Path Directive
+
+Adds directories to search for libraries during linking.
+
+**Syntax:**
+```pascal
+{$library_path <path>}
+```
+
+**Example:**
+```pascal
+program WithLibraries;
+
+{$library_path "../common/lib"}
+{$library_path "C:/SDK/lib"}
+
+begin
+  WriteLn('Custom library paths set');
+end.
+```
+
+---
+
+### 7.8 Link Directive
+
+Links against external libraries.
+
+**Syntax:**
+```pascal
+{$link <library>}
+```
+
+**Example:**
+```pascal
+program WindowsApp;
+
+{$link user32}
+{$link gdi32}
+{$link opengl32}
+
+begin
+  WriteLn('Linked against Windows libraries');
+end.
+```
+
+**Notes:**
+- Library names are platform-specific
+- On Windows: links `user32.lib`
+- On Linux: links `libuser32.so` or `libuser32.a`
+
+---
+
+### 7.9 Module Path Directive
+
+Adds directories to search for Pascal modules/units.
+
+**Syntax:**
+```pascal
+{$module_path <path>}
+```
+
+**Example:**
+```pascal
+program WithModules;
+
+{$module_path "../common/units"}
+
+begin
+  WriteLn('Custom module paths set');
+end.
+```
+
+**Use case:** When organizing units in custom directories.
+
+---
+
+### 7.10 Complete Example
+
+Here's a real-world example combining multiple directives:
+
+```pascal
+program ProductionApp;
+
+{*
+  Production Build Configuration
+  - Maximum optimization
+  - Stripped binary
+  - Windows 64-bit target
+  - External library dependencies
+*}
+
+{$optimization ReleaseFast}
+{$strip on}
+{$target x86_64-windows}
+{$exceptions off}
+
+{$include_path "C:/Libraries/SDL2/include"}
+{$library_path "C:/Libraries/SDL2/lib"}
+{$link SDL2}
+{$link SDL2main}
+
+begin
+  WriteLn('Production build ready!');
+  WriteLn('Optimized for maximum performance');
+end.
+```
+
+**Result:**
+- Fully optimized binary
+- No debug symbols
+- Compiled for Windows x64
+- No exception overhead
+- Linked with SDL2 library
+
+---
+
+## 8. Project Structure
+
+### 8.1 Default Project Layout
+
+When you create a project with `nitro init MyProject`, you get:
+
+```
+MyProject/
+├── src/
+│   └── MyProject.pas          # Main source file
+├── runtime/
+│   ├── runtime.cpp            # NitroPascal runtime implementation
+│   └── runtime.h              # NitroPascal runtime header
+├── generated/                 # Generated files (created on build)
+│   ├── MyProject.json         # AST (for debugging)
+│   ├── MyProject.cpp          # Generated C++ source
+│   └── MyProject.h            # Generated C++ header
+├── zig-out/                   # Build output (created on build)
+│   └── bin/
+│       └── MyProject.exe      # Final executable (Windows)
+├── .zig-cache/                # Zig build cache
+└── build.zig                  # Build configuration
+```
+
+### 8.2 Source Directory (`src/`)
+
+**Purpose:** Contains your Pascal source files.
+
+**Entry Points:**
+- `<ProjectName>.pas` - Primary entry point
+- `main.pas` - Fallback entry point
+
+**Multi-file Projects:**
+You can create multiple `.pas` files in `src/`:
+
+```
+src/
+├── MyProject.pas     # Main program
+├── Utils.pas         # Utility unit
+└── GameEngine.pas    # Game engine unit
+```
+
+**Using units:**
+```pascal
+// Utils.pas
+unit Utils;
+
+interface
+
+function Add(A, B: Integer): Integer;
+
+implementation
+
+function Add(A, B: Integer): Integer;
+begin
+  Result := A + B;
+end;
+
+end.
+```
+
+```pascal
+// MyProject.pas
+program MyProject;
+
+uses Utils;
+
+begin
+  WriteLn('5 + 3 = ', Add(5, 3));
+end.
+```
+
+### 8.3 Runtime Directory (`runtime/`)
+
+**Purpose:** Contains the NitroPascal Runtime Library (RTL).
+
+**Files:**
+- `runtime.h` - RTL interface (headers)
+- `runtime.cpp` - RTL implementation
+
+**⚠️ Important:** Do not modify these files unless you know what you're doing. They're copied from the NitroPascal installation and ensure Pascal semantics.
+
+**RTL provides:**
+- I/O functions (`WriteLn`, `Write`, `ReadLn`)
+- String class (UTF-16, 1-based indexing)
+- Control flow helpers (`ForLoop`, `WhileLoop`, etc.)
+- Type conversions (`IntToStr`, `StrToInt`, etc.)
+- Array/collection helpers
+
+### 8.4 Generated Directory (`generated/`)
+
+**Purpose:** Stores transpiled C++ code and intermediate files.
+
+**Created by:** `nitro build`
+
+**Contents:**
+- `*.cpp` - Generated C++ source
+- `*.h` - Generated C++ headers
+- `*.json` - AST representation (for debugging)
+
+**Example `MyProject.cpp`:**
+```cpp
+#include "runtime/runtime.h"
 
 int main() {
-  int32_t exitCode = 0;
-  x = 42;
-  exitCode = 0;
-  return exitCode;
+    np::WriteLn("Hello, World!");
+    return 0;
 }
 ```
 
-#### Module → Header + Implementation
+**Use case for JSON:** Debugging transpilation issues. You can inspect the AST to see how Pascal was parsed.
 
-**Pascal:**
-```pascal
-module Utils;
+### 8.5 Build Output (`zig-out/`)
 
-public type Point = record
-  x, y: double;
-end;
+**Purpose:** Final build artifacts.
 
-public routine distance(const p1, p2: Point): double;
-begin
-  return 0.0; // Simplified
-end;
-
-end.
+**Structure:**
+```
+zig-out/
+└── bin/
+    ├── MyProject       # Linux/macOS executable
+    └── MyProject.exe   # Windows executable
 ```
 
-**Utils.h:**
-```cpp
-#pragma once
-#include <cstdint>
-
-struct Point {
-  double x, y;
-};
-
-double distance(Point p1, Point p2);
+**For libraries:**
+```
+zig-out/
+└── lib/
+    ├── libMyLib.so      # Linux shared library
+    ├── libMyLib.dylib   # macOS shared library
+    ├── MyLib.dll        # Windows DLL
+    ├── libMyLib.a       # Static library (Linux/macOS)
+    └── MyLib.lib        # Static library (Windows)
 ```
 
-**Utils.cpp:**
-```cpp
-#include "Utils.h"
+### 8.6 Build Configuration (`build.zig`)
 
-double distance(Point p1, Point p2) {
-  return 0.0;
-}
-```
+**Purpose:** Zig build script that orchestrates C++ compilation.
 
-## Zig Build Integration
+**Generated by:** `nitro init` (initial) and `nitro build` (updated)
 
-### Generated build.zig
-
+**Example build.zig:**
 ```zig
 const std = @import("std");
 
 pub fn build(b: *std.Build) void {
-    const target = b.resolveTargetQuery(.{
-        .cpu_arch = .x86_64,
-        .os_tag = .windows,
-    });
+    const target = b.standardTargetOptions(.{});
     const optimize = .ReleaseFast;
-
-    // Create module for C++ sources
+    
     const module = b.addModule("MyProject", .{
         .target = target,
         .optimize = optimize,
         .link_libc = true,
     });
-
-    // C++ compiler flags
+    
     const cpp_flags = [_][]const u8{
         "-std=c++20",
-        "-fno-exceptions",
     };
-
-    // Add all generated C++ files
+    
+    // Add generated C++ sources
     module.addCSourceFile(.{
         .file = b.path("generated/MyProject.cpp"),
         .flags = &cpp_flags,
     });
-
-    // Create executable
+    
+    // Add runtime
+    module.addCSourceFile(.{
+        .file = b.path("runtime/runtime.cpp"),
+        .flags = &cpp_flags,
+    });
+    
+    module.addIncludePath(b.path("runtime"));
+    
     const exe = b.addExecutable(.{
         .name = "MyProject",
         .root_module = module,
     });
-
-    // Link C++ standard library
+    
     exe.linkLibCpp();
-
     b.installArtifact(exe);
 }
 ```
 
-### Build Customization
-
-Compiler directives directly control `build.zig` generation:
-
-```pascal
-$target "aarch64-linux-gnu"
-$optimize "release_small"
-$strip_symbols "on"
-$link_library "m;pthread"
-```
-
-Generates:
-```zig
-const target = b.resolveTargetQuery(.{
-    .cpu_arch = .aarch64,
-    .os_tag = .linux,
-    .abi = .gnu,
-});
-const optimize = .ReleaseSmall;
-
-exe.linkSystemLibrary("m");
-exe.linkSystemLibrary("pthread");
-```
+**⚠️ Note:** This file is auto-generated. Manual edits will be overwritten on next build.
 
 ---
 
-# 9. Complete Examples
+## 9. Build System
 
-## Basic Programs
+### 9.1 The Zig Build System
 
-### Simple Addition
+NitroPascal uses **Zig** as both:
+1. A drop-in C++ compiler (via `zig cc`)
+2. A build system orchestrator (via `build.zig`)
 
-```pascal
-program Addition;
+**Why Zig?**
+- ✅ Cross-compilation made easy
+- ✅ LLVM-based optimization
+- ✅ No external dependencies
+- ✅ Fast incremental builds
+- ✅ Consistent across platforms
 
-extern <stdio.h> routine printf(format: ^char; ...): int;
+### 9.2 Build Targets
 
-var
-  x, y, sum: int;
+The Zig build system supports multiple targets:
 
-begin
-  x := 10;
-  y := 20;
-  sum := x + y;
-  printf("Sum: %d\n", sum);
-  ExitCode := 0;
-end.
+**Query available targets:**
+```bash
+zig targets
 ```
 
-### Loops and Conditionals
-
-```pascal
-program LoopsDemo;
-
-extern <stdio.h> routine printf(format: ^char; ...): int;
-
-var
-  i, sum: int;
-
-begin
-  sum := 0;
-  
-  // For loop
-  for i := 1 to 10 do
-  begin
-    sum := sum + i;
-    if i mod 2 = 0 then
-      printf("%d is even\n", i)
-    else
-      printf("%d is odd\n", i);
-  end;
-  
-  printf("Sum of 1-10: %d\n", sum);
-  ExitCode := 0;
-end.
+**Common targets:**
+```
+x86_64-windows-gnu
+x86_64-linux-gnu
+x86_64-macos
+aarch64-linux-gnu
+aarch64-macos
+wasm32-wasi
 ```
 
-## Working Features
-
-### String Manipulation
-
+**Setting target in Pascal:**
 ```pascal
-program StringDemo;
-
-extern <stdio.h> routine printf(format: ^char; ...): int;
-
-var
-  greeting: string;
-  name: string;
-  message: string;
-
-begin
-  name := "Alice";
-  greeting := "Hello, ";
-  message := greeting + name + "!";
-  
-  printf("%s\n", message.c_str());
-  printf("Length: %d\n", int(message.length()));
-  
-  ExitCode := 0;
-end.
+{$target x86_64-linux}
 ```
 
-### Pointer Operations
+### 9.3 Build Modes
 
-```pascal
-program PointerDemo;
+Zig supports four optimization modes (mapped from NitroPascal directives):
 
-extern <stdio.h> routine printf(format: ^char; ...): int;
+| NitroPascal | Zig Mode | Description |
+|-------------|----------|-------------|
+| `{$optimization Debug}` | `.Debug` | No optimization, full checks |
+| `{$optimization ReleaseSafe}` | `.ReleaseSafe` | Optimized + checks |
+| `{$optimization ReleaseFast}` | `.ReleaseFast` | Maximum speed |
+| `{$optimization ReleaseSmall}` | `.ReleaseSmall` | Minimum size |
 
-var
-  x: int;
-  ptr: ^int;
+**Performance comparison (typical):**
 
-begin
-  x := 42;
-  ptr := @x;
-  
-  printf("Value: %d\n", x);
-  printf("Via pointer: %d\n", ptr^);
-  
-  ptr^ := 100;
-  printf("After modification: %d\n", x);
-  
-  ExitCode := 0;
-end.
+| Mode | Speed | Size | Safety | Build Time |
+|------|-------|------|--------|------------|
+| Debug | 1x | Large | Full | Fast |
+| ReleaseSafe | 3-5x | Medium | Partial | Medium |
+| ReleaseFast | 5-10x | Medium | Minimal | Slow |
+| ReleaseSmall | 3-5x | Small | Minimal | Slow |
+
+### 9.4 Incremental Builds
+
+Zig automatically handles incremental compilation:
+
+**First build:**
+```bash
+nitro build
+```
+```
+Building with Zig...
+  [1/3] Compile C++ runtime.cpp
+  [2/3] Compile C++ MyProject.cpp
+  [3/3] Link executable MyProject
+
+✓ Build completed successfully!
 ```
 
-### Parameters and Functions
+**Second build (no changes):**
+```bash
+nitro build
+```
+```
+Building with Zig...
 
-```pascal
-program FunctionDemo;
-
-extern <stdio.h> routine printf(format: ^char; ...): int;
-
-routine add(const a, b: int): int;
-begin
-  return a + b;
-end;
-
-routine swap(var a, b: int);
-var
-  temp: int;
-begin
-  temp := a;
-  a := b;
-  b := temp;
-end;
-
-var
-  x, y, result: int;
-
-begin
-  x := 5;
-  y := 10;
-  
-  result := add(x, y);
-  printf("Sum: %d\n", result);
-  
-  printf("Before swap: x=%d, y=%d\n", x, y);
-  swap(x, y);
-  printf("After swap: x=%d, y=%d\n", x, y);
-  
-  ExitCode := 0;
-end.
+✓ Build completed successfully!
 ```
 
-### Conditional Compilation
+**Changed source:**
+```bash
+# Edit MyProject.pas
+nitro build
+```
+```
+Building with Zig...
+  [1/2] Compile C++ MyProject.cpp
+  [2/2] Link executable MyProject
 
-```pascal
-program ConditionalDemo;
-
-#define DEBUG
-#define ENABLE_LOGGING
-
-extern <stdio.h> routine printf(format: ^char; ...): int;
-
-routine DoWork();
-begin
-  #ifdef DEBUG
-    printf("[DEBUG] Starting work...\n");
-  #endif
-  
-  printf("Doing important work\n");
-  
-  #ifdef DEBUG
-    printf("[DEBUG] Work complete\n");
-  #endif
-end;
-
-begin
-  #ifdef ENABLE_LOGGING
-    printf("Logging is enabled\n");
-  #endif
-  
-  DoWork();
-  
-  ExitCode := 0;
-end.
+✓ Build completed successfully!
 ```
 
-## External C Libraries
+**Note:** Only changed files are recompiled!
 
-### File I/O Example
+### 9.5 Build Cache
 
-```pascal
-program FileIO;
+Zig maintains a build cache in `.zig-cache/`:
 
-extern <stdio.h> routine printf(format: ^char; ...): int;
-extern <stdio.h> routine fopen(const filename, mode: ^char): pointer;
-extern <stdio.h> routine fclose(file: pointer): int;
-extern <stdio.h> routine fprintf(file: pointer; format: ^char; ...): int;
-extern <stdio.h> routine fgets(buffer: ^char; size: int; file: pointer): ^char;
-
-const
-  BUFFER_SIZE: int = 256;
-
-var
-  file: pointer;
-  buffer: array[0..255] of char;
-  filename: ^char;
-
-begin
-  filename := "test.txt";
-  
-  // Write to file
-  file := fopen(filename, "w");
-  if file <> nil then
-  begin
-    fprintf(file, "Hello from NitroPascal!\n");
-    fprintf(file, "Line 2\n");
-    fprintf(file, "Line 3\n");
-    fclose(file);
-    printf("File written successfully\n");
-  end;
-  
-  // Read from file
-  file := fopen(filename, "r");
-  if file <> nil then
-  begin
-    printf("File contents:\n");
-    while fgets(@buffer[0], BUFFER_SIZE, file) <> nil do
-      printf("%s", @buffer[0]);
-    fclose(file);
-  end;
-  
-  ExitCode := 0;
-end.
+```
+.zig-cache/
+├── h/              # Header dependencies
+├── o/              # Object files
+└── ...
 ```
 
-### Math Library Example
+**When to clean cache:**
+- Build errors after system updates
+- Switching between major Zig versions
+- Weird linking issues
 
-```pascal
-program MathDemo;
-
-extern <stdio.h> routine printf(format: ^char; ...): int;
-extern <math.h> routine sqrt(x: double): double;
-extern <math.h> routine pow(base, exp: double): double;
-extern <math.h> routine sin(x: double): double;
-extern <math.h> routine cos(x: double): double;
-
-const
-  PI: double = 3.14159265359;
-
-var
-  radius, area, hypotenuse: double;
-  angle, sinVal, cosVal: double;
-
-begin
-  // Circle area
-  radius := 5.0;
-  area := PI * pow(radius, 2.0);
-  printf("Circle area (r=%.1f): %.2f\n", radius, area);
-  
-  // Pythagorean theorem
-  hypotenuse := sqrt(pow(3.0, 2.0) + pow(4.0, 2.0));
-  printf("Hypotenuse (3-4-?): %.2f\n", hypotenuse);
-  
-  // Trigonometry
-  angle := PI / 4.0; // 45 degrees
-  sinVal := sin(angle);
-  cosVal := cos(angle);
-  printf("sin(45°) = %.4f\n", sinVal);
-  printf("cos(45°) = %.4f\n", cosVal);
-  
-  ExitCode := 0;
-end.
+**How to clean:**
+```bash
+nitro clean
 ```
 
----
+This removes `.zig-cache/`, `zig-out/`, and `generated/`.
 
-# 10. Implementation Status
 
-## Test Results
+## 10. Advanced Topics
 
-**Test Suite:** 376 total tests across multiple categories  
-**Pass Rate:** All core tests passing  
-**Last Updated:** 2025-10-07
+### 10.1 Inspecting Generated Code
 
-The NitroPascal test suite validates all implemented language features including:
-- Lexer and parser functionality
-- Type system (primitives, pointers, arrays, records, enums)
-- Control flow statements
-- String operations
-- Pointer operations
-- Parameter passing
-- Conditional compilation
-- Code generation
+Want to see the C++ code that NitroPascal generates?
 
-## Implemented Features
+**Step 1: Build your project**
+```bash
+nitro build
+```
 
-### ✅ Core Language 
+**Step 2: Navigate to generated directory**
+```bash
+cd generated
+```
 
-#### Lexical Analysis
-- Case-sensitive identifiers
-- All 41 keywords
-- Comments (single-line and multi-line)
-- All literal types (integer, float, string, char, boolean, nil)
-- All operators (arithmetic, logical, relational, bitwise)
-- Preprocessor directives
+**Step 3: View the C++ code**
+```bash
+cat MyProject.cpp
+# or
+code MyProject.cpp  # Open in VS Code
+```
 
-#### Type System
-- All primitive types (int, uint, int64, uint64, int16, uint16, byte, double, float, bool, char)
-- Type aliases
-- Enumerations
-- Pointers and pointer operations
-- String type (maps to std::string)
-
-#### Compilation Modes
-- Programs (executable with main())
-- Modules (object files)
-- Libraries (DLLs/shared libraries)
-
-#### Statements
-- Compound statements (begin...end)
-- Assignment (:=)
-- If-then-else
-- While loops
-- Repeat-until loops
-- For loops (to/downto)
-- Case statements (via if-else chains)
-- Break/Continue
-- Return
-- Halt
-
-#### Expressions
-- All binary operations
-- All unary operations
-- Function calls
-- Method calls (for strings and pointers)
-- Pointer dereference (^)
-- Address-of (@)
-- Type casts
-- String concatenation and comparison
-
-#### Declarations
-- Constants
-- Variables
-- Routines (functions/procedures)
-- Types
-- Import statements
-- Extern declarations (C/C++ interop)
-
-#### External Interop
-- System headers (<header.h>)
-- Local headers ("header.h")
-- DLL/Shared library imports
-- Calling conventions (stdcall, cdecl, fastcall)
-- Variadic functions (...)
-- Function aliasing (as "name")
-
-#### Compiler Directives
-- $target - Target platform specification
-- $optimize - Optimization levels
-- $exceptions - Exception handling control
-- $strip_symbols - Symbol stripping
-- $module_path - Module search paths
-- $include_path - Include paths
-- $library_path - Library search paths
-- $link_library - Link libraries
-
-#### Conditional Compilation
-- #define / #undef
-- #ifdef / #ifndef
-- #else / #endif
-- Nested conditionals
-- Zero runtime overhead (parser-level)
-
-#### Build System
-- Zig integration
-- Cross-compilation support
-- Automatic build.zig generation
-- C++ standard library linking
-
-#### CLI Tools
-- nitro init - Project creation
-- nitro build - Compilation
-- nitro run - Execution
-- nitro clean - Cleanup
-- nitro version - Version info
-- nitro help - Help text
-
-##### Types
-- Array types - Full support for fixed-size arrays, multi-dimensional arrays
-- Record types - Complete struct/record implementation with field access
-- Subrange types - Type aliases with range documentation
-- Function pointer types - Function type declarations and routine pointers
-
-## Known Issues
-
-### 🟢 Loop Variable Semantics
-
-**Issue:** Generated C++ declares a local loop variable that shadows any global variable.
+**Example:**
 
 **Pascal:**
 ```pascal
-var i: int;
-for i := 1 to 5 do
-  // use i
+program Test;
+
+function Add(A, B: Integer): Integer;
+begin
+  Result := A + B;
+end;
+
+begin
+  WriteLn('5 + 3 = ', Add(5, 3));
+end.
 ```
 
-**Generated C++:**
+**Generated C++ (generated/Test.cpp):**
 ```cpp
-int32_t i;  // global, never used
-for (int i = 1; i <= 5; i++) { ... }  // local shadow
+#include "runtime/runtime.h"
+
+int32_t Add(int32_t A, int32_t B) {
+    int32_t Result;
+    Result = A + B;
+    return Result;
+}
+
+int main() {
+    np::WriteLn("5 + 3 = ", Add(5, 3));
+    return 0;
+}
+```
+
+**Use cases:**
+- Understanding how your code translates
+- Debugging transpilation issues
+- Learning C++ patterns
+- Optimizing performance
+
+### 10.2 Debugging
+
+#### Debugging Pascal Source
+
+**Method 1: Output Debugging**
+```pascal
+program Debug;
+
+var
+  X: Integer;
+
+begin
+  X := 10;
+  WriteLn('DEBUG: X = ', X);  // Simple debug output
+  
+  X := X * 2;
+  WriteLn('DEBUG: After multiplication, X = ', X);
+end.
+```
+
+**Method 2: Conditional Compilation**
+```pascal
+program Debug;
+
+{$DEFINE DEBUG}
+
+var
+  X: Integer;
+
+begin
+  X := 10;
+  
+  {$IFDEF DEBUG}
+  WriteLn('DEBUG: X = ', X);
+  {$ENDIF}
+  
+  X := X * 2;
+end.
+```
+
+#### Debugging Generated C++
+
+**Step 1: Build with debug symbols**
+```pascal
+{$optimization Debug}
+{$strip off}
+```
+
+**Step 2: Compile**
+```bash
+nitro build
+```
+
+**Step 3: Debug with GDB (Linux/macOS)**
+```bash
+gdb zig-out/bin/MyProject
+```
+
+**Step 4: Debug with LLDB (macOS)**
+```bash
+lldb zig-out/bin/MyProject
+```
+
+**Step 5: Debug with Visual Studio (Windows)**
+1. Open `generated/MyProject.cpp` in Visual Studio
+2. Set breakpoints
+3. Attach to process or run under debugger
+
+### 10.3 Performance Optimization
+
+#### Level 1: Compiler Directives
+
+```pascal
+program FastApp;
+
+{$optimization ReleaseFast}
+{$exceptions off}
+{$strip on}
+
+begin
+  // Your code here
+end.
 ```
 
 **Impact:**
-- Global variable with same name as loop variable is shadowed and unused
-- Loop variable not accessible after loop ends
-- Differs from some Pascal implementations
+- `ReleaseFast`: 5-10x faster than Debug
+- `exceptions off`: ~5-10% faster, smaller binary
+- `strip on`: Smaller binary (faster loading)
 
-**Status:** By design - matches C++ semantics.
+#### Level 2: Algorithm Optimization
 
----
-
-### 🟢 DLL String Return ABI
-
-**Issue:** Returning `std::string` by value from DLL exports works for same-toolchain scenarios but may cause ABI issues across different compilers.
-
-**Example:**
+**Avoid:**
 ```pascal
-library StringLib;
-public routine GetName(): string;
+// Inefficient: String concatenation in loop
+var
+  Result: String;
+  I: Integer;
 begin
-  return "MyLib";
-end;
+  Result := '';
+  for I := 1 to 10000 do
+    Result := Result + 'x';  // Creates new string each time!
 end.
 ```
 
-**Impact:**
-- Works perfectly for NitroPascal-to-NitroPascal interop
-- May crash or corrupt data when called from different C++ toolchains
-- Cannot be easily called from C, C#, or other languages
-
-**Workaround:** Use `^char` return types for DLL exports that need to be called from external code.
-
-**Status:** Documented limitation.
-
----
-
-### 🟢 String Indexing Bounds Checking
-
-**Issue:** String indexing uses `std::string::operator[]` which has no bounds checking.
-
-**Example:**
+**Prefer:**
 ```pascal
-var s: string;
-var c: char;
+// Efficient: Build array then concat once
+var
+  Chars: array[0..9999] of Char;
+  I: Integer;
 begin
-  s := "Hello";
-  c := s[100];  // undefined behavior, no runtime check
+  for I := 0 to 9999 do
+    Chars[I] := 'x';
+  // Convert to string once
 end.
 ```
 
-**Impact:**
-- Fast performance (no overhead)
-- Matches C++ semantics
-- Out-of-bounds access may crash, return garbage, or appear to work
+#### Level 3: Inspect Generated C++
 
-**Status:** By design - matches C++ semantics.
+Check `generated/*.cpp` for optimization opportunities:
 
----
-
-### 🟢 Program Structure Edge Cases
-
-**Issue:** Some edge cases in program structure may fail parsing:
-- Empty programs with no statements
-- Programs with only variable declarations
-- Some routine definition patterns
-
-**Status:** Minor issue, being investigated
-
-## Limitations
-
-### No Standard Library
-
-NitroPascal has **no standard library**. All functionality comes from C/C++ via `extern` declarations.
-
-**Implications:**
-- No built-in I/O functions (WriteLn, ReadLn)
-- No string manipulation routines
-- No file handling utilities
-- No math functions
-- No collections
-
-**Philosophy:** This is intentional - keeps the language simple and forces explicit dependencies.
-
-**Workaround:** Use C standard library via `extern` declarations.
-
-### No Type Inference
-
-All types must be explicitly declared:
-
-```pascal
-var x: int := 42;        // ✓ OK
-var y := 42;             // ✗ Error - type required
+**Suboptimal:**
+```cpp
+// Unnecessary copies
+void ProcessData(std::string data) {  // Copy!
+    // ...
+}
 ```
 
-### No Inline Variables
+**Report to NitroPascal team if you see inefficiencies!**
 
-Variable declarations must be in `var` sections:
+### 10.4 Calling C/C++ Code
 
+NitroPascal makes it easy to call C/C++ libraries.
+
+**Example: Calling C Math Library**
+
+**Step 1: Declare external functions**
 ```pascal
-routine test();
-var
-  x: int;     // ✓ OK - in var section
-begin
-  var y: int; // ✗ Error - inline var not supported
-end;
-```
+program MathDemo;
 
-### No Properties
-
-Traditional Pascal properties are not supported:
-
-```pascal
-type
-  TMyClass = class
-    property Value: int read FValue write SetValue;  // ✗ Not supported
-  end;
-```
-
-**Workaround:** Use explicit getter/setter routines.
-
-### No Classes with Inheritance
-
-Only simple structs (records) are supported. No class hierarchies, virtual methods, or inheritance.
-
-**Workaround:** Use C++ classes via extern declarations.
-
-### No Generics
-
-Template/generic types are not supported in v1.0:
-
-```pascal
-type
-  List<T> = ...;  // ✗ Not supported
-```
-
-**Status:** Planned for v2.0.
-
-### No Dynamic Arrays
-
-Only fixed-size arrays are supported:
-
-```pascal
-var
-  items: array of int;  // ✗ Not supported (dynamic)
-  buffer: array[0..99] of int;  // ✓ OK (fixed size)
-```
-
-**Status:** Dynamic arrays planned for v2.0.
-
-### Case Statements Require Integer Types
-
-String case statements are forbidden:
-
-```pascal
-case name of
-  "Alice": ...;   // ✗ Error - strings not allowed
-  "Bob": ...;
-end;
-```
-
-**Workaround:** Use `if...else if` chains.
-
-### No Range Checking
-
-Array and string accesses are unchecked:
-
-```pascal
-arr[i]   // No bounds checking
-s[i]     // No bounds checking
-```
-
-**Status:** By design - matches C++ semantics.
-
----
-
-# 11. Appendices
-
-## Appendix A: Keyword Reference
-
-### Keywords (41 Total)
-
-| Keyword | Category | Description |
-|---------|----------|-------------|
-| `and` | Operator | Logical AND |
-| `array` | Type | Array type declaration |
-| `begin` | Statement | Begin block |
-| `break` | Statement | Exit loop |
-| `case` | Statement | Case statement |
-| `const` | Declaration | Constant declaration |
-| `continue` | Statement | Continue loop |
-| `div` | Operator | Integer division |
-| `do` | Statement | Loop body |
-| `downto` | Statement | For loop (descending) |
-| `else` | Statement | Alternative branch |
-| `end` | Statement | End block |
-| `extern` | Declaration | External C function |
-| `false` | Literal | Boolean false |
-| `finalize` | Declaration | Library cleanup |
-| `for` | Statement | For loop |
-| `halt` | Statement | Exit program |
-| `if` | Statement | Conditional |
-| `import` | Declaration | Import module |
-| `library` | Declaration | Library unit |
-| `mod` | Operator | Modulo |
-| `module` | Declaration | Module unit |
-| `nil` | Literal | Null pointer |
-| `not` | Operator | Logical NOT |
-| `of` | Type | Array element type |
-| `or` | Operator | Logical OR |
-| `program` | Declaration | Program unit |
-| `public` | Modifier | Public visibility |
-| `repeat` | Statement | Repeat loop |
-| `return` | Statement | Return from routine |
-| `routine` | Declaration | Function/procedure |
-| `shl` | Operator | Shift left |
-| `shr` | Operator | Shift right |
-| `then` | Statement | If condition body |
-| `to` | Statement | For loop (ascending) |
-| `true` | Literal | Boolean true |
-| `type` | Declaration | Type declaration |
-| `until` | Statement | Repeat condition |
-| `var` | Declaration | Variable declaration |
-| `while` | Statement | While loop |
-| `xor` | Operator | Logical XOR |
-
-## Appendix B: Operator Precedence
-
-### Precedence Levels (Highest to Lowest)
-
-**Level 1 - Highest (Unary):**
-- `@` - Address-of
-- `^` - Pointer dereference
-- `not` - Logical NOT
-
-**Level 2 - Multiplicative:**
-- `*` - Multiply
-- `/` - Divide (float)
-- `div` - Integer divide
-- `mod` - Modulo
-- `shl` - Shift left
-- `shr` - Shift right
-- `and` - Logical AND
-
-**Level 3 - Additive:**
-- `+` - Add
-- `-` - Subtract
-- `or` - Logical OR
-- `xor` - Logical XOR
-
-**Level 4 - Relational (Lowest):**
-- `=` - Equal
-- `<>` - Not equal
-- `<` - Less than
-- `<=` - Less or equal
-- `>` - Greater than
-- `>=` - Greater or equal
-
-### Associativity
-
-- **Left-to-right:** All binary operators
-- **Right-to-left:** Unary operators
-
-### Examples
-
-```pascal
-// Precedence example
-a + b * c         // = a + (b * c)
-not x and y       // = (not x) and y
-x = y and z = w   // = x = (y and (z = w))
-
-// Parentheses for clarity
-(a + b) * c
-x and (y or z)
-```
-
-## Appendix C: Type Mapping
-
-### Primitive Types
-
-| NitroPascal | C++ | Size | Signed |
-|-------------|-----|------|--------|
-| `int` | `int32_t` | 4 | Yes |
-| `uint` | `uint32_t` | 4 | No |
-| `int64` | `int64_t` | 8 | Yes |
-| `uint64` | `uint64_t` | 8 | No |
-| `int16` | `int16_t` | 2 | Yes |
-| `uint16` | `uint16_t` | 2 | No |
-| `byte` | `uint8_t` | 1 | No |
-| `double` | `double` | 8 | Yes |
-| `float` | `float` | 4 | Yes |
-| `bool` | `bool` | 1 | N/A |
-| `char` | `char` | 1 | No |
-| `pointer` | `void*` | 4/8 | N/A |
-
-### Structured Types
-
-| NitroPascal | C++ Equivalent | Status |
-|-------------|----------------|--------|
-| `string` | `std::string` | ✅ Implemented |
-| `^T` | `T*` | ✅ Implemented |
-| `array[0..N] of T` | `T[N+1]` or `std::array<T, N+1>` | ✅ Implemented |
-| `record...end` | `struct {...}` | ✅ Implemented |
-| `(value1, value2)` | `enum {...}` | ✅ Implemented |
-| `Expression..Expression` | Type alias (subrange) | ✅ Implemented |
-
-### Special Types
-
-| NitroPascal | C++ Equivalent | Notes |
-|-------------|----------------|-------|
-| Routine parameter types | Function pointers | Via typedefs |
-| Generic pointer | `void*` | Explicit casts required |
-| C function pointer | `T (*)(args)` | Via extern declarations |
-
-## Appendix D: EBNF Grammar
-
-### Complete Grammar
-
-```ebnf
-(* Compilation Units *)
-CompilationUnit = Program | Module | Library .
-
-Program = "program" Identifier ";"
-          [ Declarations ]
-          "begin"
-          StatementSequence
-          "end" "." .
-
-Module = "module" Identifier ";"
-         [ Declarations ]
-         "end" "." .
-
-Library = "library" Identifier ";"
-          [ Declarations ]
-          [ "begin" StatementSequence ]
-          [ "finalize" StatementSequence ]
-          "end" "." .
-
-(* Declarations *)
-Declarations = { ImportDecl | ExternDecl | TypeDecl | ConstDecl | VarDecl | RoutineDecl } .
-
-ImportDecl = "import" Identifier ";" .
-
-ExternDecl = "extern" ExternalSource "routine" Identifier 
-             "(" [ ParameterList ] ")" [ ":" Type ] [ "as" StringLiteral ] ";" .
-
-ExternalSource = "<" Identifier ">"
-               | StringLiteral
-               | "dll" StringLiteral [ CallConv ] .
-
-CallConv = "stdcall" | "cdecl" | "fastcall" .
-
-TypeDecl = "type" Identifier "=" TypeDefinition ";" .
-
-ConstDecl = "const" Identifier [ ":" Type ] "=" Expression ";" .
-
-VarDecl = "var" IdentifierList ":" Type [ ":=" Expression ] ";" .
-
-RoutineDecl = [ "public" ] "routine" Identifier 
-              "(" [ ParameterList ] ")" [ ":" Type ] ";"
-              [ VarSection ]
-              "begin"
-              StatementSequence
-              "end" ";" .
-
-IdentifierList = Identifier { "," Identifier } .
-
-VarSection = "var" { IdentifierList ":" Type ";" } .
-
-(* Types *)
-Type = TypeIdentifier
-     | PointerType
-     | ArrayType
-     | RecordType
-     | EnumType
-     | SubrangeType
-     | FunctionType .
-
-TypeIdentifier = Identifier .
-
-PointerType = "^" Type .
-
-ArrayType = "array" "[" ArrayBounds "]" "of" Type .
-
-ArrayBounds = Expression [ ".." Expression ] { "," Expression [ ".." Expression ] } .
-
-RecordType = "record"
-             { IdentifierList ":" Type ";" }
-             "end" .
-
-EnumType = "(" IdentifierList ")" .
-
-SubrangeType = Expression ".." Expression .
-
-FunctionType = "routine" "(" [ ParameterList ] ")" [ ":" Type ] .
-
-(* Parameters *)
-ParameterList = Parameter { ";" Parameter } .
-
-Parameter = [ "const" | "var" | "out" ] IdentifierList ":" Type
-          | "..." .
-
-(* Statements *)
-StatementSequence = Statement { ";" Statement } .
-
-Statement = Assignment
-          | RoutineCall
-          | IfStatement
-          | CaseStatement
-          | WhileStatement
-          | RepeatStatement
-          | ForStatement
-          | BreakStatement
-          | ContinueStatement
-          | ReturnStatement
-          | HaltStatement
-          | CompoundStatement
-          | [ empty ] .
-
-Assignment = Designator ":=" Expression .
-
-RoutineCall = Designator [ "(" [ ArgumentList ] ")" ] .
-
-ArgumentList = Expression { "," Expression } .
-
-CompoundStatement = "begin" StatementSequence "end" .
-
-IfStatement = "if" Expression "then" Statement
-              [ "else" Statement ] .
-
-CaseStatement = "case" Expression "of"
-                CaseElement { ";" CaseElement }
-                [ "else" StatementSequence ]
-                "end" .
-
-CaseElement = CaseLabelList ":" Statement .
-
-CaseLabelList = CaseLabel { "," CaseLabel } .
-
-CaseLabel = Expression [ ".." Expression ] .
-
-WhileStatement = "while" Expression "do" Statement .
-
-RepeatStatement = "repeat" StatementSequence "until" Expression .
-
-ForStatement = "for" Identifier ":=" Expression 
-               ( "to" | "downto" ) Expression
-               "do" Statement .
-
-BreakStatement = "break" .
-
-ContinueStatement = "continue" .
-
-ReturnStatement = "return" [ Expression ] .
-
-HaltStatement = "halt" "(" Expression ")" .
-
-(* Expressions *)
-Expression = SimpleExpression [ RelOp SimpleExpression ] .
-
-SimpleExpression = [ "+" | "-" ] Term { AddOp Term } .
-
-Term = Factor { MulOp Factor } .
-
-Factor = IntegerLiteral
-       | FloatLiteral
-       | StringLiteral
-       | CharLiteral
-       | BoolLiteral
-       | NilLiteral
-       | ArrayLiteral
-       | RecordLiteral
-       | Designator [ "(" [ ArgumentList ] ")" ]
-       | "(" Expression ")"
-       | "not" Factor
-       | "@" Designator
-       | TypeCast .
-
-ArrayLiteral = "[" [ Expression { "," Expression } ] "]" .
-
-RecordLiteral = "(" Identifier ":" Expression { ";" Identifier ":" Expression } ")" .
-
-TypeCast = Type "(" Expression ")" .
-
-Designator = Identifier { Selector } .
-
-Selector = "." Identifier [ "(" [ ArgumentList ] ")" ]
-         | "[" Expression { "," Expression } "]"
-         | "^" .
-
-RelOp = "=" | "<>" | "<" | "<=" | ">" | ">=" .
-
-AddOp = "+" | "-" | "or" | "xor" .
-
-MulOp = "*" | "/" | "div" | "mod" | "shl" | "shr" | "and" .
-
-(* Literals *)
-Identifier = Letter { Letter | Digit | "_" } .
-
-IntegerLiteral = Digit { Digit }
-               | "0x" HexDigit { HexDigit }
-               | "0b" BinDigit { BinDigit } .
-
-FloatLiteral = Digit { Digit } "." { Digit } [ Exponent ]
-             | Digit { Digit } Exponent .
-
-Exponent = ( "e" | "E" ) [ "+" | "-" ] Digit { Digit } .
-
-StringLiteral = '"' { Character | EscapeSequence } '"' .
-
-CharLiteral = "'" ( Character | EscapeSequence ) "'" .
-
-BoolLiteral = "true" | "false" .
-
-NilLiteral = "nil" .
-
-EscapeSequence = "\n" | "\t" | "\r" | "\\" | "\"" | "\'" | "\0" .
-
-Letter = "a".."z" | "A".."Z" .
-Digit = "0".."9" .
-HexDigit = Digit | "a".."f" | "A".."F" .
-BinDigit = "0" | "1" .
-
-(* Preprocessor *)
-Preprocessor = Define | Undef | IfDef | IfNDef | Else | EndIf .
-
-Define = "#define" Identifier .
-Undef = "#undef" Identifier .
-IfDef = "#ifdef" Identifier .
-IfNDef = "#ifndef" Identifier .
-Else = "#else" .
-EndIf = "#endif" .
-
-(* Compiler Directives *)
-Directive = "$" DirectiveName StringLiteral .
-
-DirectiveName = "target" | "optimize" | "exceptions" | "strip_symbols"
-              | "module_path" | "include_path" | "library_path" | "link_library" .
-```
-
----
-
-## Quick Reference Card
-
-### Common Patterns
-
-**Program Structure:**
-```pascal
-$target "native"
-$optimize "debug"
-
-program MyApp;
-
-extern <stdio.h> routine printf(format: ^char; ...): int;
+function sqrt(x: Double): Double; external 'c' name 'sqrt';
+function pow(x, y: Double): Double; external 'c' name 'pow';
 
 var
-  x: int;
+  Result: Double;
 
 begin
-  x := 42;
-  printf("x = %d\n", x);
-  ExitCode := 0;
+  Result := sqrt(16.0);
+  WriteLn('sqrt(16) = ', Result:0:2);
+  
+  Result := pow(2.0, 10.0);
+  WriteLn('2^10 = ', Result:0:0);
 end.
 ```
 
-**Module Structure:**
+**Step 2: Link against math library (Linux)**
 ```pascal
-module MyModule;
+{$link m}
+```
 
-public type MyType = int;
+**Step 3: Build**
+```bash
+nitro build
+```
 
-public routine MyFunction(const x: int): int;
+**Output:**
+```
+sqrt(16) = 4.00
+2^10 = 1024
+```
+
+### 10.5 Creating Libraries
+
+#### Shared Library Example
+
+**Step 1: Create project**
+```bash
+nitro init MathLib --template library
+```
+
+**Step 2: Edit MathLib.pas**
+```pascal
+library MathLib;
+
+function LibAdd(A: Integer; B: Integer): Integer; cdecl;
 begin
-  return x * 2;
+  Result := A + B;
 end;
 
+function LibMultiply(A: Integer; B: Integer): Integer; stdcall;
+begin
+  Result := A * B;
+end;
+
+exports
+  LibAdd,
+  LibMultiply;
+
+begin
 end.
 ```
 
-**Conditionals:**
-```pascal
-#define DEBUG
+**Step 3: Build**
+```bash
+cd MathLib
+nitro build
+```
 
-#ifdef DEBUG
-  // Debug code
+**Output:**
+- Windows: `zig-out/lib/MathLib.dll`
+- Linux: `zig-out/lib/libMathLib.so`
+- macOS: `zig-out/lib/libMathLib.dylib`
+
+**Step 4: Use from C**
+```c
+// main.c
+#include <stdio.h>
+
+#ifdef _WIN32
+    #define EXPORT __declspec(dllimport)
 #else
-  // Release code
+    #define EXPORT
 #endif
+
+EXPORT int LibAdd(int a, int b);
+EXPORT int LibMultiply(int a, int b);
+
+int main() {
+    printf("5 + 3 = %d\n", LibAdd(5, 3));
+    printf("5 * 3 = %d\n", LibMultiply(5, 3));
+    return 0;
+}
 ```
 
-**External Functions:**
+### 10.6 Cross-Compilation
+
+NitroPascal + Zig make cross-compilation trivial.
+
+**Compile for Linux from Windows:**
 ```pascal
-extern <stdio.h> routine printf(format: ^char; ...): int;
-extern dll "user32.dll" stdcall routine MessageBoxA(...): int;
+{$target x86_64-linux}
+```
+```bash
+nitro build
+```
+
+**Compile for Windows from Linux:**
+```pascal
+{$target x86_64-windows}
+```
+```bash
+nitro build
+```
+
+**Compile for macOS from Linux:**
+```pascal
+{$target x86_64-macos}
+```
+```bash
+nitro build
+```
+
+**Compile for ARM64 Linux:**
+```pascal
+{$target aarch64-linux}
+```
+```bash
+nitro build
+```
+
+**Compile for WebAssembly:**
+```pascal
+{$target wasm32-wasi}
+```
+```bash
+nitro build
+```
+
+**No cross-compilers needed!** Zig handles everything.
+
+---
+
+## 11. Examples
+
+### 11.1 Hello World
+
+**File:** `HelloWorld.pas`
+```pascal
+program HelloWorld;
+begin
+  WriteLn('Hello, World!');
+  WriteLn('Welcome to NitroPascal!');
+end.
+```
+
+**Build and run:**
+```bash
+nitro init HelloWorld
+cd HelloWorld
+nitro build
+nitro run
+```
+
+### 11.2 Variables and Math
+
+**File:** `MathDemo.pas`
+```pascal
+program MathDemo;
+
+var
+  A, B: Integer;
+  Sum, Diff, Prod: Integer;
+  Quot: Double;
+
+begin
+  A := 10;
+  B := 3;
+  
+  Sum := A + B;
+  Diff := A - B;
+  Prod := A * B;
+  Quot := A / B;
+  
+  WriteLn('A = ', A);
+  WriteLn('B = ', B);
+  WriteLn('');
+  WriteLn('Sum (A + B) = ', Sum);
+  WriteLn('Difference (A - B) = ', Diff);
+  WriteLn('Product (A * B) = ', Prod);
+  WriteLn('Quotient (A / B) = ', Quot:0:2);
+  WriteLn('Integer Division (A div B) = ', A div B);
+  WriteLn('Modulo (A mod B) = ', A mod B);
+end.
+```
+
+**Output:**
+```
+A = 10
+B = 3
+
+Sum (A + B) = 13
+Difference (A - B) = 7
+Product (A * B) = 30
+Quotient (A / B) = 3.33
+Integer Division (A div B) = 3
+Modulo (A mod B) = 1
+```
+
+### 11.3 Loops
+
+**File:** `Loops.pas`
+```pascal
+program Loops;
+
+var
+  I: Integer;
+
+begin
+  WriteLn('=== For Loop (1 to 5) ===');
+  for I := 1 to 5 do
+    WriteLn('Count: ', I);
+  
+  WriteLn('');
+  WriteLn('=== For Loop (5 downto 1) ===');
+  for I := 5 downto 1 do
+    WriteLn('Countdown: ', I);
+  
+  WriteLn('');
+  WriteLn('=== While Loop ===');
+  I := 1;
+  while I <= 3 do
+  begin
+    WriteLn('While iteration: ', I);
+    I := I + 1;
+  end;
+  
+  WriteLn('');
+  WriteLn('=== Repeat-Until Loop ===');
+  I := 1;
+  repeat
+    WriteLn('Repeat iteration: ', I);
+    I := I + 1;
+  until I > 3;
+end.
+```
+
+### 11.4 Functions
+
+**File:** `Functions.pas`
+```pascal
+program Functions;
+
+function Factorial(N: Integer): Integer;
+var
+  I: Integer;
+begin
+  Result := 1;
+  for I := 2 to N do
+    Result := Result * I;
+end;
+
+function IsPrime(N: Integer): Boolean;
+var
+  I: Integer;
+begin
+  if N < 2 then
+  begin
+    Result := False;
+    Exit;
+  end;
+  
+  for I := 2 to N div 2 do
+  begin
+    if (N mod I) = 0 then
+    begin
+      Result := False;
+      Exit;
+    end;
+  end;
+  
+  Result := True;
+end;
+
+var
+  Num: Integer;
+
+begin
+  WriteLn('=== Factorial Examples ===');
+  for Num := 1 to 10 do
+    WriteLn('Factorial(', Num, ') = ', Factorial(Num));
+  
+  WriteLn('');
+  WriteLn('=== Prime Numbers (1 to 20) ===');
+  for Num := 1 to 20 do
+    if IsPrime(Num) then
+      WriteLn(Num, ' is prime');
+end.
+```
+
+### 11.5 Records
+
+**File:** `Records.pas`
+```pascal
+program Records;
+
+type
+  TPoint = record
+    X: Integer;
+    Y: Integer;
+  end;
+  
+  TRectangle = record
+    TopLeft: TPoint;
+    BottomRight: TPoint;
+  end;
+
+function CalculateArea(const Rect: TRectangle): Integer;
+var
+  Width, Height: Integer;
+begin
+  Width := Rect.BottomRight.X - Rect.TopLeft.X;
+  Height := Rect.BottomRight.Y - Rect.TopLeft.Y;
+  Result := Width * Height;
+end;
+
+procedure PrintPoint(const P: TPoint);
+begin
+  WriteLn('Point(', P.X, ', ', P.Y, ')');
+end;
+
+var
+  P1, P2: TPoint;
+  Rect: TRectangle;
+
+begin
+  P1.X := 0;
+  P1.Y := 0;
+  
+  P2.X := 10;
+  P2.Y := 20;
+  
+  WriteLn('Point 1:');
+  PrintPoint(P1);
+  
+  WriteLn('Point 2:');
+  PrintPoint(P2);
+  
+  Rect.TopLeft := P1;
+  Rect.BottomRight := P2;
+  
+  WriteLn('');
+  WriteLn('Rectangle area: ', CalculateArea(Rect));
+end.
+```
+
+### 11.6 Arrays
+
+**File:** `Arrays.pas`
+```pascal
+program Arrays;
+
+var
+  StaticArray: array[0..4] of Integer;
+  DynamicArray: array of Integer;
+  I: Integer;
+
+begin
+  WriteLn('=== Static Array ===');
+  StaticArray[0] := 10;
+  StaticArray[1] := 20;
+  StaticArray[2] := 30;
+  StaticArray[3] := 40;
+  StaticArray[4] := 50;
+  
+  for I := 0 to 4 do
+    WriteLn('StaticArray[', I, '] = ', StaticArray[I]);
+  
+  WriteLn('');
+  WriteLn('=== Dynamic Array ===');
+  SetLength(DynamicArray, 5);
+  
+  for I := 0 to 4 do
+    DynamicArray[I] := (I + 1) * 100;
+  
+  for I := 0 to Length(DynamicArray) - 1 do
+    WriteLn('DynamicArray[', I, '] = ', DynamicArray[I]);
+end.
+```
+
+### 11.7 Optimized Build
+
+**File:** `FastApp.pas`
+```pascal
+program FastApp;
+
+{$optimization ReleaseFast}
+{$exceptions off}
+{$strip on}
+
+function Fibonacci(N: Integer): Integer;
+begin
+  if N <= 1 then
+    Result := N
+  else
+    Result := Fibonacci(N - 1) + Fibonacci(N - 2);
+end;
+
+var
+  I: Integer;
+
+begin
+  WriteLn('=== Fibonacci Numbers (Optimized Build) ===');
+  WriteLn('');
+  
+  for I := 0 to 15 do
+    WriteLn('Fib(', I, ') = ', Fibonacci(I));
+end.
+```
+
+**Build:**
+```bash
+nitro build
+```
+
+**Note:** Optimizations from directives produce significantly faster code!
+
+---
+
+## 12. Troubleshooting
+
+### 12.1 Common Build Errors
+
+#### Error: "File not found"
+
+**Problem:**
+```
+Error: File not found: src/MyProject.pas
+```
+
+**Solution:**
+- Ensure you're in the project directory
+- Check filename matches exactly (case-sensitive on Linux/macOS)
+- Verify file exists: `ls src/`
+
+---
+
+#### Error: "Zig EXE was not found"
+
+**Problem:**
+```
+Error: Zig EXE was not found...
+```
+
+**Solution:**
+- Reinstall NitroPascal from releases
+- Verify Zig is bundled: Check `bin/zig` exists
+- Check PATH if you moved installation
+
+---
+
+#### Error: "Build failed with exit code 1"
+
+**Problem:**
+```
+✗ Build failed!
+Error: Zig build failed with exit code 1
+```
+
+**Solution:**
+1. Check for syntax errors in Pascal code
+2. Run `nitro clean` and rebuild
+3. Check generated C++ code: `cat generated/*.cpp`
+4. Look for Zig error messages in output
+
+---
+
+#### Error: "Cannot open generated file"
+
+**Problem:**
+```
+Error: Cannot open file 'generated/MyProject.cpp'
+```
+
+**Solution:**
+- Generated directory may be corrupted
+- Run: `nitro clean`
+- Delete `generated/` manually
+- Rebuild: `nitro build`
+
+---
+
+### 12.2 Runtime Errors
+
+#### Error: "Access violation" / "Segmentation fault"
+
+**Possible causes:**
+1. **Array out of bounds**
+   ```pascal
+   var A: array[0..4] of Integer;
+   A[10] := 100;  // ERROR!
+   ```
+
+2. **Uninitialized pointer**
+   ```pascal
+   var P: ^Integer;
+   P^ := 100;  // ERROR: P not initialized!
+   ```
+
+3. **String index out of range**
+   ```pascal
+   var S: String;
+   S := 'Hello';
+   WriteLn(S[100]);  // ERROR!
+   ```
+
+**Solution:**
+- Add bounds checking during development
+- Use `{$optimization Debug}` to enable safety checks
+- Validate array indices before access
+
+---
+
+#### Error: "Invalid memory reference"
+
+**Possible causes:**
+- Freeing memory twice
+- Using freed memory
+- Stack overflow (deep recursion)
+
+**Solution:**
+```pascal
+{$optimization ReleaseSafe}  // Enable safety checks
 ```
 
 ---
 
-## Document Index
+### 12.3 Getting Help
 
-- **Getting Started:** [Section 2](#2-getting-started)
-- **CLI Commands:** [Section 3](#3-cli-reference)
-- **Language Spec:** [Section 4](#4-language-specification)
-- **Directives:** [Section 5](#5-compiler-directives)
-- **Preprocessing:** [Section 6](#6-conditional-compilation)
-- **C Interop:** [Section 7](#7-external-interop)
-- **Examples:** [Section 9](#9-complete-examples)
+#### Check the Documentation
+- [DESIGN.md](DESIGN.md) - Architecture details
+- [README.md](README.md) - Project overview
+- [THIRD-PARTY.md](THIRD-PARTY.md) - Dependencies
+
+#### Community Support
+- **Facebook Group:** [NitroPascal Community](https://www.facebook.com/groups/nitropascal)
+- **Discord:** [Join Discord](https://discord.gg/tPWjMwK)
+- **Bluesky:** [@tinybiggames.com](https://bsky.app/profile/tinybiggames.com)
+
+#### Report Bugs
+- **GitHub Issues:** [Open an issue](https://github.com/tinyBigGAMES/NitroPascal/issues)
+
+**When reporting:**
+1. Describe the problem clearly
+2. Include Pascal source code (minimal example)
+3. Include error messages
+4. Mention OS and NitroPascal version
+5. Attach generated C++ code if relevant
 
 ---
 
-**End of NitroPascal Developer Manual**
+## 13. FAQ
 
-For the latest updates, visit: https://github.com/tinyBigGAMES/NitroPascal
+### 13.1 General Questions
+
+**Q: Is NitroPascal production-ready?**
+
+A: NitroPascal is under active development. While the core compiler works well, some advanced features are still being implemented. Check the [GitHub repository](https://github.com/tinyBigGAMES/NitroPascal) for current status.
+
+---
+
+**Q: Can I use NitroPascal for commercial projects?**
+
+A: Yes! NitroPascal is licensed under BSD-3-Clause, which allows commercial use without restrictions. You only need to include the copyright notice in distributions.
+
+---
+
+**Q: Is NitroPascal compatible with Delphi code?**
+
+A: NitroPascal aims for Object Pascal compatibility and supports much of Delphi syntax. However, VCL (Visual Component Library) and Delphi-specific RTL are not supported. You can use NitroPascal for console applications, libraries, and algorithms.
+
+---
+
+**Q: How fast is NitroPascal compared to Delphi/FPC?**
+
+A: NitroPascal generates C++ code optimized by LLVM, achieving performance comparable to hand-written C++. In many cases, this matches or exceeds Delphi/FPC performance, especially with `{$optimization ReleaseFast}`.
+
+---
+
+**Q: Can I call C/C++ libraries from NitroPascal?**
+
+A: Yes! NitroPascal has excellent C/C++ interoperability through external declarations. See [Calling C/C++ Code](#104-calling-cc-code) for examples.
+
+---
+
+**Q: Does NitroPascal support GUI applications?**
+
+A: Not directly. NitroPascal focuses on console applications and libraries. However, you can:
+- Create libraries that interface with C/C++ GUI frameworks
+- Use external C++ GUI libraries through FFI
+- Future GUI support is under consideration
+
+---
+
+**Q: Which platforms does NitroPascal support?**
+
+A: NitroPascal supports any platform that Zig/LLVM support:
+- Windows (x64, ARM64)
+- Linux (x64, ARM64)
+- macOS (x64, Apple Silicon)
+- WebAssembly (WASI)
+- Many embedded targets
+
+---
+
+### 13.2 Technical Questions
+
+**Q: Why does NitroPascal generate C++ instead of compiling directly?**
+
+A: This approach provides several benefits:
+1. Leverage LLVM's world-class optimization
+2. Cross-platform support for free
+3. Easy C/C++ library integration
+4. Smaller, simpler compiler codebase
+5. Inspectable intermediate representation
+
+See [Understanding NitroPascal](#4-understanding-nitropascal) for details.
+
+---
+
+**Q: Can I see the generated C++ code?**
+
+A: Yes! Check the `generated/` directory after building:
+```bash
+nitro build
+cat generated/MyProject.cpp
+```
+
+---
+
+**Q: How do I optimize my programs?**
+
+A: Use compiler directives:
+```pascal
+{$optimization ReleaseFast}
+{$exceptions off}
+{$strip on}
+```
+
+See [Compiler Directives](#7-compiler-directives) for all options.
+
+---
+
+**Q: Does NitroPascal support generics?**
+
+A: Generic support is planned but not yet implemented. Check the [GitHub repository](https://github.com/tinyBigGAMES/NitroPascal) for status.
+
+---
+
+**Q: Does NitroPascal support inline assembly?**
+
+A: Not directly. However, you can:
+1. Write assembly in a C++ file
+2. Declare it as external in Pascal
+3. Link against it
+
+---
+
+**Q: Why use Zig as the C++ compiler?**
+
+A: Zig provides:
+- Drop-in C/C++ compiler (via `zig cc`)
+- Cross-compilation without external toolchains
+- Fast, reliable builds
+- LLVM-based optimization
+- Consistent behavior across platforms
+
+---
+
+**Q: Can I use NitroPascal without internet access?**
+
+A: Yes! All dependencies are bundled. No downloads required during build.
+
+---
+
+**Q: Does NitroPascal support debugging?**
+
+A: Yes, when built with:
+```pascal
+{$optimization Debug}
+{$strip off}
+```
+
+You can use GDB, LLDB, or Visual Studio to debug the generated C++ code and inspect variables.
+
+---
+
+**Q: How do I contribute to NitroPascal?**
+
+A: Contributions are welcome!
+1. Fork the [GitHub repository](https://github.com/tinyBigGAMES/NitroPascal)
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+Also report bugs, suggest features, or improve documentation!
+
+---
+
+**Q: Where can I get support?**
+
+A: Multiple channels available:
+- **Facebook:** [NitroPascal Group](https://www.facebook.com/groups/nitropascal)
+- **Discord:** [Join Server](https://discord.gg/tPWjMwK)
+- **Bluesky:** [@tinybiggames.com](https://bsky.app/profile/tinybiggames.com)
+- **GitHub:** [Open Issues](https://github.com/tinyBigGAMES/NitroPascal/issues)
+
+---
+
+## Appendix A: Compiler Directive Quick Reference
+
+| Directive | Values | Default | Description |
+|-----------|--------|---------|-------------|
+| `{$optimization}` | `Debug`, `ReleaseSafe`, `ReleaseFast`, `ReleaseSmall` | `Debug` | Optimization level |
+| `{$target}` | Target triple (e.g., `x86_64-linux`) | `native` | Compilation target |
+| `{$exceptions}` | `on`, `off` | `on` | C++ exception handling |
+| `{$strip}` | `on`, `off` | `off` | Strip debug symbols |
+| `{$include_path}` | Directory path | - | Add C++ include path |
+| `{$library_path}` | Directory path | - | Add library search path |
+| `{$link}` | Library name | - | Link external library |
+| `{$module_path}` | Directory path | - | Add Pascal module path |
+
+---
+
+## Appendix B: Type Conversion Functions
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `IntToStr(I: Integer): String` | Integer to string | `IntToStr(42)` → `'42'` |
+| `StrToInt(S: String): Integer` | String to integer | `StrToInt('42')` → `42` |
+| `FloatToStr(F: Double): String` | Float to string | `FloatToStr(3.14)` → `'3.14'` |
+| `StrToFloat(S: String): Double` | String to float | `StrToFloat('3.14')` → `3.14` |
+
+---
+
+## Appendix C: String Functions
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `Length(S: String): Integer` | String length | `Length('Hello')` → `5` |
+| `Copy(S: String; Index, Count: Integer): String` | Substring (1-based) | `Copy('Hello', 1, 3)` → `'Hel'` |
+| `Pos(Sub, S: String): Integer` | Find substring | `Pos('lo', 'Hello')` → `4` |
+| `UpperCase(S: String): String` | Convert to uppercase | `UpperCase('hello')` → `'HELLO'` |
+| `LowerCase(S: String): String` | Convert to lowercase | `LowerCase('HELLO')` → `'hello'` |
+| `Trim(S: String): String` | Remove leading/trailing spaces | `Trim('  Hi  ')` → `'Hi'` |
+
+---
+
+## Appendix D: Array Functions
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `Length(A: array of T): Integer` | Array length | `Length(arr)` |
+| `SetLength(var A: array of T; N: Integer)` | Resize dynamic array | `SetLength(arr, 10)` |
+
+---
+
+## Appendix E: I/O Functions
+
+| Function | Description | Example |
+|----------|-------------|---------|
+| `Write(...)` | Output without newline | `Write('Hello')` |
+| `WriteLn(...)` | Output with newline | `WriteLn('Hello')` |
+| `ReadLn(var X)` | Read input line | `ReadLn(name)` |
+
+---
+
+## Appendix F: Glossary
+
+**AST (Abstract Syntax Tree):** Internal representation of parsed source code.
+
+**Cross-compilation:** Compiling for a different platform than the host.
+
+**DelphiAST:** Open-source Object Pascal parser used by NitroPascal.
+
+**LLVM:** Compiler infrastructure providing optimization and code generation.
+
+**RTL (Runtime Library):** Standard library providing core functionality.
+
+**Transpilation:** Converting source code from one language to another (Pascal → C++).
+
+**Zig:** Modern programming language and toolchain used by NitroPascal for C++ compilation.
+
+---
+
+## License
+
+**NitroPascal** is licensed under the **BSD-3-Clause License**.
+
+Copyright © 2025-present tinyBigGAMES™ LLC. All Rights Reserved.
+
+For full license text, see [LICENSE](https://github.com/tinyBigGAMES/NitroPascal/blob/main/LICENSE).
+
+---
+
+## About
+
+**NitroPascal** is developed and maintained by **tinyBigGAMES™ LLC**.
+
+- **Website:** [https://nitropascal.org](https://nitropascal.org)
+- **GitHub:** [https://github.com/tinyBigGAMES/NitroPascal](https://github.com/tinyBigGAMES/NitroPascal)
+- **Facebook:** [NitroPascal Community](https://www.facebook.com/groups/nitropascal)
+- **Discord:** [Join Server](https://discord.gg/tPWjMwK)
+- **Bluesky:** [@tinybiggames.com](https://bsky.app/profile/tinybiggames.com)
+
+---
+
+**Thank you for using NitroPascal!** 🚀
+
+*Write elegant Pascal, run blazing-fast native code.*

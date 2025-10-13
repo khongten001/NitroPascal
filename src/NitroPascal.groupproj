@@ -1,9 +1,9 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <ProjectGuid>{02017E96-1C04-47D1-991D-FD0CE5023F9A}</ProjectGuid>
+        <ProjectGuid>{6389463E-FFA7-4A7E-9602-AF27C2749C5F}</ProjectGuid>
     </PropertyGroup>
     <ItemGroup>
-        <Projects Include="nitro\nitro.dproj">
+        <Projects Include="projects\nitro\nitro.dproj">
             <Dependencies/>
         </Projects>
         <Projects Include="..\examples\testbed\Testbed.dproj">
@@ -18,13 +18,13 @@
         </BorlandProject>
     </ProjectExtensions>
     <Target Name="nitro">
-        <MSBuild Projects="nitro\nitro.dproj"/>
+        <MSBuild Projects="projects\nitro\nitro.dproj"/>
     </Target>
     <Target Name="nitro:Clean">
-        <MSBuild Projects="nitro\nitro.dproj" Targets="Clean"/>
+        <MSBuild Projects="projects\nitro\nitro.dproj" Targets="Clean"/>
     </Target>
     <Target Name="nitro:Make">
-        <MSBuild Projects="nitro\nitro.dproj" Targets="Make"/>
+        <MSBuild Projects="projects\nitro\nitro.dproj" Targets="Make"/>
     </Target>
     <Target Name="Testbed">
         <MSBuild Projects="..\examples\testbed\Testbed.dproj"/>

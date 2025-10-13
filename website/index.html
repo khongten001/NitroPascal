@@ -781,28 +781,25 @@
                 <div class="code-block">
                     <div class="code-header">Generated C++ Code</div>
                     <div class="code-content">
-<span class="comment">// Optimized C++ output</span>
-<span class="keyword">#include</span> <span class="string">&lt;iostream&gt;</span>
+<span class="comment">// Generated C++ with NitroPascal RTL</span>
+<span class="keyword">#include</span> <span class="string">"nitropascal_rtl.h"</span>
 
 <span class="keyword">struct</span> <span class="type">TPoint</span> {
-  <span class="type">int32_t</span> X;
-  <span class="type">int32_t</span> Y;
+    <span class="type">int32_t</span> X;
+    <span class="type">int32_t</span> Y;
 };
 
 <span class="keyword">void</span> <span class="function">PrintPoint</span>(<span class="keyword">const</span> <span class="type">TPoint</span>&amp; P) {
-  <span class="type">std::wcout</span> &lt;&lt; <span class="string">L"Point("</span> &lt;&lt; P.X
-             &lt;&lt; <span class="string">L", "</span> &lt;&lt; P.Y &lt;&lt; <span class="string">L")"</span>
-             &lt;&lt; <span class="type">std::endl</span>;
+    np::<span class="function">WriteLn</span>(<span class="string">"Point("</span>, P.X, <span class="string">", "</span>, P.Y, <span class="string">")"</span>);
 }
 
 <span class="keyword">int</span> <span class="function">main</span>() {
-  <span class="type">TPoint</span> Point;
-  Point.X = <span class="number">10</span>;
-  Point.Y = <span class="number">20</span>;
-  <span class="function">PrintPoint</span>(Point);
-  <span class="type">std::wcout</span> &lt;&lt; <span class="string">L"Hello from NitroPascal!"</span>
-             &lt;&lt; <span class="type">std::endl</span>;
-  <span class="keyword">return</span> <span class="number">0</span>;
+    <span class="type">TPoint</span> Point;
+    Point.X = <span class="number">10</span>;
+    Point.Y = <span class="number">20</span>;
+    <span class="function">PrintPoint</span>(Point);
+    np::<span class="function">WriteLn</span>(<span class="string">"Hello from NitroPascal!"</span>);
+    <span class="keyword">return</span> <span class="number">0</span>;
 }
                     </div>
                 </div>

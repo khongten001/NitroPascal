@@ -121,28 +121,25 @@ end.
 <td>
 
 ```cpp
-// Optimized C++ output
-#include <iostream>
+// Generated C++ with NitroPascal RTL
+#include "nitropascal_rtl.h"
 
 struct TPoint {
-  int32_t X;
-  int32_t Y;
+    int32_t X;
+    int32_t Y;
 };
 
 void PrintPoint(const TPoint& P) {
-  std::wcout << L"Point(" << P.X 
-             << L", " << P.Y << L")" 
-             << std::endl;
+    np::WriteLn("Point(", P.X, ", ", P.Y, ")");
 }
 
 int main() {
-  TPoint Point;
-  Point.X = 10;
-  Point.Y = 20;
-  PrintPoint(Point);
-  std::wcout << L"Hello from NitroPascal!" 
-             << std::endl;
-  return 0;
+    TPoint Point;
+    Point.X = 10;
+    Point.Y = 20;
+    PrintPoint(Point);
+    np::WriteLn("Hello from NitroPascal!");
+    return 0;
 }
 ```
 
@@ -189,10 +186,12 @@ Download the latest release from the [Releases page](https://github.com/tinyBigG
 
 ## 📚 Documentation
 
+- **[Language Coverage](docs\COVERAGE.md)** - Supported Object Pascal features and implementation status
+- **[Design Document](docs\DESIGN.md)** - Complete architecture and implementation guide
+- **[User Manual](docs\MANUAL.md)** - Comprehensive guide for using NitroPascal
 - **[Third-Party Libraries](THIRD-PARTY.md)** - Open source libraries used by NitroPascal
 - **[Website](https://nitropascal.org)** - Official NitroPascal website
-- **API Reference** *(coming soon)*
-- **Language Guide** *(coming soon)*
+
 
 ## 🤝 Contributing
 
@@ -202,8 +201,6 @@ We welcome contributions! NitroPascal is in active development and there are man
 - 💡 Suggest new features
 - 📖 Improve documentation
 - 🔧 Submit pull requests
-
-Please check our [Contributing Guidelines](CONTRIBUTING.md) *(coming soon)* for more details.
 
 ## 📄 License
 
@@ -225,6 +222,7 @@ This means you can use NitroPascal to build both open-source and proprietary app
 
 NitroPascal builds upon excellent open-source projects:
 
+- **[DelphiAST](https://github.com/RomanYankovsky/DelphiAST)** - Object Pascal parser
 - **[LLVM](https://github.com/llvm/llvm-project)** - Compiler infrastructure
 - **[Zig](https://github.com/ziglang/zig)** - Programming language and toolchain
 

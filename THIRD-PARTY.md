@@ -6,6 +6,7 @@ NitroPascal is built on the shoulders of these excellent open-source projects. W
 
 | Library | Description | Repository |
 |---------|-------------|------------|
+| **DelphiAST** | Abstract Syntax Tree builder for Delphi - provides robust Pascal parsing capabilities | [GitHub](https://github.com/RomanYankovsky/DelphiAST) |
 | **LLVM** | The LLVM Compiler Infrastructure - modular and reusable compiler and toolchain technologies | [GitHub](https://github.com/llvm/llvm-project) |
 | **Zig** | A general-purpose programming language and toolchain for maintaining robust, optimal, and reusable software | [GitHub](https://github.com/ziglang/zig) |
 

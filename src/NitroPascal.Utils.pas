@@ -82,6 +82,11 @@ type
 
     class function  CreateDirInPath(const AFilename: string): Boolean;
     class function  GetVersionInfo(out AVersionInfo: TNPVersionInfo; const AFilePath: string = ''): Boolean; static;
+    class function  GetZigExePath(): string; static;
+
+    class procedure CopyFilePreservingEncoding(const ASourceFile, ADestFile: string); static;
+    class function  DetectFileEncoding(const AFilePath: string): TEncoding; static;
+    class function  EnsureBOM(const AText: string): string; static;
 
   end;
 
@@ -679,10 +684,12 @@ var
   dRunning: DWORD;
   dAvailable: DWORD;
   CmdLine: string;
-  BufferList: TStringList;
-  Line: string;
   LExitCode: DWORD;
   LWorkDirPtr: PChar;
+  LLineAccumulator: TStringBuilder;
+  LI: Integer;
+  LChar: AnsiChar;
+  LCurrentLine: string;
 begin
   saSecurity.nLength := SizeOf(TSecurityAttributes);
   saSecurity.bInheritHandle := true;
@@ -707,7 +714,7 @@ begin
         LWorkDirPtr := nil;
       if CreateProcess(nil, PChar(CmdLine), @saSecurity, @saSecurity, true, NORMAL_PRIORITY_CLASS, nil, LWorkDirPtr, suiStartup, piProcess) then
         try
-          BufferList := TStringList.Create;
+          LLineAccumulator := TStringBuilder.Create;
           try
             repeat
               dRunning := WaitForSingleObject(piProcess.hProcess, 100);
@@ -718,18 +725,48 @@ begin
                   ReadFile(hRead, pBuffer[0], CReadBuffer, dRead, nil);
                   pBuffer[dRead] := #0;
                   OemToCharA(pBuffer, dBuffer);
-                  BufferList.Clear;
-                  BufferList.Text := string(pBuffer);
-                  for line in BufferList do
+                  
+                  // Process character-by-character to find complete lines
+                  LI := 0;
+                  while LI < Integer(dRead) do
                   begin
-                    if Assigned(ACallback) then
+                    LChar := dBuffer[LI];
+                    
+                    if (LChar = #13) or (LChar = #10) then
                     begin
-                      ACallback(line, AUserData);
+                      // Found line terminator - emit accumulated line if not empty
+                      if LLineAccumulator.Length > 0 then
+                      begin
+                        LCurrentLine := LLineAccumulator.ToString();
+                        LLineAccumulator.Clear();
+                        
+                        if Assigned(ACallback) then
+                          ACallback(LCurrentLine, AUserData);
+                      end;
+                      
+                      // Skip paired CR+LF
+                      if (LChar = #13) and (LI + 1 < Integer(dRead)) and (dBuffer[LI + 1] = #10) then
+                        Inc(LI);
+                    end
+                    else
+                    begin
+                      // Accumulate character
+                      LLineAccumulator.Append(string(LChar));
                     end;
+                    
+                    Inc(LI);
                   end;
                 until (dRead < CReadBuffer);
               ProcessMessages;
             until (dRunning <> WAIT_TIMEOUT);
+            
+            // Emit any remaining partial line
+            if LLineAccumulator.Length > 0 then
+            begin
+              LCurrentLine := LLineAccumulator.ToString();
+              if Assigned(ACallback) then
+                ACallback(LCurrentLine, AUserData);
+            end;
 
             if GetExitCodeProcess(piProcess.hProcess, LExitCode) then
             begin
@@ -737,7 +774,7 @@ begin
             end;
 
           finally
-            FreeAndNil(BufferList);
+            FreeAndNil(LLineAccumulator);
           end;
         finally
           CloseHandle(piProcess.hProcess);
@@ -1070,6 +1107,66 @@ begin
     TDirectory.CreateDirectory(LPath);
 
   Result := True;
+end;
+
+class function TNPUtils.GetZigExePath(): string;
+var
+  LBase: string;
+begin
+  LBase := TPath.GetDirectoryName(ParamStr(0));
+  Result := TPath.Combine(
+    LBase,
+    TPath.Combine('res', TPath.Combine('zig', 'zig.exe'))
+  );
+end;
+
+class procedure TNPUtils.CopyFilePreservingEncoding(const ASourceFile, ADestFile: string);
+var
+  LSourceBytes: TBytes;
+begin
+  // Validate source file exists
+  if not TFile.Exists(ASourceFile) then
+    raise Exception.CreateFmt('CopyFilePreservingEncoding: Source file not found: %s', [ASourceFile]);
+
+  // Ensure destination directory exists
+  CreateDirInPath(ADestFile);
+
+  // Read all bytes from source file
+  LSourceBytes := TFile.ReadAllBytes(ASourceFile);
+  
+  // Write bytes to destination - this preserves EVERYTHING including BOM
+  TFile.WriteAllBytes(ADestFile, LSourceBytes);
+end;
+
+class function TNPUtils.DetectFileEncoding(const AFilePath: string): TEncoding;
+var
+  LBytes: TBytes;
+  LEncoding: TEncoding;
+begin
+  // Validate file exists
+  if not TFile.Exists(AFilePath) then
+    raise Exception.CreateFmt('DetectFileEncoding: File not found: %s', [AFilePath]);
+
+  // Read a sample of bytes (first 4KB should be enough for BOM detection)
+  LBytes := TFile.ReadAllBytes(AFilePath);
+
+  if Length(LBytes) = 0 then
+    Exit(TEncoding.Default);
+
+  // Let TEncoding detect the encoding from BOM
+  LEncoding := nil;
+  TEncoding.GetBufferEncoding(LBytes, LEncoding, TEncoding.Default);
+
+  Result := LEncoding;
+end;
+
+class function TNPUtils.EnsureBOM(const AText: string): string;
+const
+  UTF16_BOM = #$FEFF;
+begin
+  Result := AText;
+  if (Length(Result) = 0) or (Result[1] <> UTF16_BOM) then
+    Result := UTF16_BOM + Result;
 end;
 
 class function TNPUtils.GetVersionInfo(out AVersionInfo: TNPVersionInfo; const AFilePath: string): Boolean;

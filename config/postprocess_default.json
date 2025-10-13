@@ -1,0 +1,74 @@
+{
+  "version": "1.0",
+  "description": "Default post-processing rules for NitroPascal C header conversion",
+  
+  "opaquePointerTypes": [
+    {
+      "pattern": "PFILE",
+      "baseName": "FILE_t",
+      "pointerName": "PFILE_t",
+      "baseType": "Pointer",
+      "comment": "C FILE handle from stdio.h"
+    },
+    {
+      "pattern": "Pva_list",
+      "baseName": "va_list_t",
+      "pointerName": "Pva_list_t",
+      "baseType": "Pointer",
+      "comment": "C va_list from stdarg.h"
+    }
+  ],
+  
+  "typeReplacements": [
+  ],
+  
+  "identifierReplacements": [
+    {
+      "find": "_file",
+      "replace": "AFile",
+      "scope": "parameters",
+      "comment": "Avoid underscore prefix in parameter names"
+    },
+    {
+      "find": "_type",
+      "replace": "AType",
+      "scope": "parameters",
+      "comment": "Avoid underscore prefix in parameter names"
+    },
+    {
+      "find": "_end",
+      "replace": "AEnd",
+      "scope": "fields",
+      "comment": "Avoid underscore prefix in field names"
+    },
+    {
+      "find": "_string",
+      "replace": "AString",
+      "scope": "fields",
+      "comment": "Avoid underscore prefix in field names"
+    }
+  ],
+  
+  "keywordEscapes": [
+    {
+      "keyword": "type",
+      "replacement": "AType"
+    },
+    {
+      "keyword": "file",
+      "replacement": "AFile"
+    },
+    {
+      "keyword": "name",
+      "replacement": "AName"
+    },
+    {
+      "keyword": "label",
+      "replacement": "ALabel"
+    },
+    {
+      "keyword": "packed",
+      "replacement": "APacked"
+    }
+  ]
+}

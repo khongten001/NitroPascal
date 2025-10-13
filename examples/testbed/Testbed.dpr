@@ -1,7 +1,7 @@
-ï»¿{===============================================================================
-  NitroPascal - Modern Pascal â€¢ C Performance
+{ ===============================================================================
+  NitroPascal - Modern Pascal • C Performance
 
-  Copyright Â© 2025-present tinyBigGAMESâ„¢ LLC
+  Copyright © 2025-present tinyBigGAMES™ LLC
   All Rights Reserved.
 
   https://nitropascal.org
@@ -13,31 +13,23 @@ program Testbed;
 
 {$APPTYPE CONSOLE}
 
+{$R *.res}
+
 uses
   System.SysUtils,
-  UTest.Arrays in 'UTest.Arrays.pas',
-  UTest.CodeGen in 'UTest.CodeGen.pas',
-  UTest.Common in 'UTest.Common.pas',
-  UTest.ConditionalCompilation in 'UTest.ConditionalCompilation.pas',
-  UTest.ControlFlow in 'UTest.ControlFlow.pas',
-  UTest.Lexer in 'UTest.Lexer.pas',
-  UTest.Numbers in 'UTest.Numbers.pas',
-  UTest.Parameters in 'UTest.Parameters.pas',
-  UTest.Parser in 'UTest.Parser.pas',
-  UTest.Pointers in 'UTest.Pointers.pas',
-  UTest.Records in 'UTest.Records.pas',
-  UTest.Strings in 'UTest.Strings.pas',
-  UTest.Types in 'UTest.Types.pas',
   UTestbed in 'UTestbed.pas',
+  UTest in 'UTest.pas',
+  NitroPascal.CodeGen.Declarations in '..\..\src\NitroPascal.CodeGen.Declarations.pas',
+  NitroPascal.CodeGen.Expressions in '..\..\src\NitroPascal.CodeGen.Expressions.pas',
+  NitroPascal.CodeGen.Files in '..\..\src\NitroPascal.CodeGen.Files.pas',
   NitroPascal.CodeGen in '..\..\src\NitroPascal.CodeGen.pas',
+  NitroPascal.CodeGen.Statements in '..\..\src\NitroPascal.CodeGen.Statements.pas',
   NitroPascal.Compiler in '..\..\src\NitroPascal.Compiler.pas',
-  NitroPascal.Lexer in '..\..\src\NitroPascal.Lexer.pas',
-  NitroPascal.Parser in '..\..\src\NitroPascal.Parser.pas',
-  NitroPascal.Resolver in '..\..\src\NitroPascal.Resolver.pas',
-  NitroPascal.Symbols in '..\..\src\NitroPascal.Symbols.pas',
-  NitroPascal.Types in '..\..\src\NitroPascal.Types.pas',
+  NitroPascal.Errors in '..\..\src\NitroPascal.Errors.pas',
+  NitroPascal.PasToJSON in '..\..\src\NitroPascal.PasToJSON.pas',
+  NitroPascal.Preprocessor in '..\..\src\NitroPascal.Preprocessor.pas',
   NitroPascal.Utils in '..\..\src\NitroPascal.Utils.pas';
 
 begin
-  UTestbed.RunTests();
+  RunTestbed();
 end.

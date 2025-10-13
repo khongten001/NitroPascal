@@ -92,3 +92,9 @@ bin/run_unittests.cmd
 bin/results.txt
 _distro.cmd
 pack.yml
+bin/result.txt
+bin/test.json
+bin/test_small.json
+src/TASK.md
+src/TASK0.md
+src/TASK2.md
