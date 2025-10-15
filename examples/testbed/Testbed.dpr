@@ -28,7 +28,8 @@ uses
   NitroPascal.Errors in '..\..\src\NitroPascal.Errors.pas',
   NitroPascal.PasToJSON in '..\..\src\NitroPascal.PasToJSON.pas',
   NitroPascal.Preprocessor in '..\..\src\NitroPascal.Preprocessor.pas',
-  NitroPascal.Utils in '..\..\src\NitroPascal.Utils.pas';
+  NitroPascal.Utils in '..\..\src\NitroPascal.Utils.pas',
+  NitroPascal.BuildSettings in '..\..\src\NitroPascal.BuildSettings.pas';
 
 begin
   RunTestbed();

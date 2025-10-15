@@ -31,6 +31,9 @@ procedure GenerateForLoop(const ACodeGenerator: TNPCodeGenerator; const AForNode
 procedure GenerateWhileLoop(const ACodeGenerator: TNPCodeGenerator; const AWhileNode: TJSONObject);
 procedure GenerateRepeatLoop(const ACodeGenerator: TNPCodeGenerator; const ARepeatNode: TJSONObject);
 procedure GenerateWithStatement(const ACodeGenerator: TNPCodeGenerator; const AWithNode: TJSONObject);
+procedure GenerateTryStatement(const ACodeGenerator: TNPCodeGenerator; const ATryNode: TJSONObject);
+function HasLoopControl(const ACodeGenerator: TNPCodeGenerator; const AStatementsNode: TJSONObject): Boolean;
+function HasExit(const ACodeGenerator: TNPCodeGenerator; const AStatementsNode: TJSONObject): Boolean;
 
 implementation
 
@@ -38,41 +41,11 @@ uses
   System.SysUtils,
   System.Generics.Collections,
   System.StrUtils,
+  System.Classes,
+  System.Math,
   NitroPascal.CodeGen.Expressions;
 
-const
-  // Map of Delphi RTL function names (uppercase) to correct C++ RTL names
-  RTL_FUNCTION_MAP: array[0..14] of record Name: string; CppName: string; end = (
-    (Name: 'WRITELN'; CppName: 'WriteLn'),
-    (Name: 'WRITE'; CppName: 'Write'),
-    (Name: 'READLN'; CppName: 'ReadLn'),
-    (Name: 'NEW'; CppName: 'New'),
-    (Name: 'DISPOSE'; CppName: 'Dispose'),
-    (Name: 'LENGTH'; CppName: 'Length'),
-    (Name: 'COPY'; CppName: 'Copy'),
-    (Name: 'POS'; CppName: 'Pos'),
-    (Name: 'INTTOSTR'; CppName: 'IntToStr'),
-    (Name: 'STRTOINT'; CppName: 'StrToInt'),
-    (Name: 'STRTOINTDEF'; CppName: 'StrToIntDef'),
-    (Name: 'FLOATTOSTR'; CppName: 'FloatToStr'),
-    (Name: 'STRTOFLOAT'; CppName: 'StrToFloat'),
-    (Name: 'UPPERCASE'; CppName: 'UpperCase'),
-    (Name: 'LOWERCASE'; CppName: 'LowerCase')
-  );
-
-function GetRTLFunctionName(const AFuncName: string): string;
-var
-  LI: Integer;
-  LUpper: string;
-begin
-  LUpper := UpperCase(AFuncName);
-  for LI := Low(RTL_FUNCTION_MAP) to High(RTL_FUNCTION_MAP) do
-  begin
-    if RTL_FUNCTION_MAP[LI].Name = LUpper then
-      Exit(RTL_FUNCTION_MAP[LI].CppName);
-  end;
-  Result := '';  // Not an RTL function
-end;
+// Note: GetRTLFunctionName is now centralized in NitroPascal.CodeGen unit
 
 function TransformStringToChar(const AStringExpr: string): string;
 var
@@ -147,6 +120,9 @@ end;
 procedure GenerateStatement(const ACodeGenerator: TNPCodeGenerator; const ANode: TJSONObject);
 var
   LNodeType: string;
+  LRoutineType: string;
+  LChildren: TJSONArray;
+  LExitValue: string;
 begin
   LNodeType := ACodeGenerator.GetNodeType(ANode);
   
@@ -166,7 +142,165 @@ begin
   else if LNodeType = 'REPEAT' then
     GenerateRepeatLoop(ACodeGenerator, ANode)
   else if LNodeType = 'WITH' then
-    GenerateWithStatement(ACodeGenerator, ANode);
+    GenerateWithStatement(ACodeGenerator, ANode)
+  else if LNodeType = 'TRY' then
+    GenerateTryStatement(ACodeGenerator, ANode)
+  else if LNodeType = 'BREAK' then
+  begin
+    if ACodeGenerator.GetLoopDepth = 0 then
+      raise Exception.Create('Break statement outside loop');
+    ACodeGenerator.EmitLine('return np::LoopControl::Break;', []);
+  end
+  else if LNodeType = 'CONTINUE' then
+  begin
+    if ACodeGenerator.GetLoopDepth = 0 then
+      raise Exception.Create('Continue statement outside loop');
+    ACodeGenerator.EmitLine('return np::LoopControl::Continue;', []);
+  end
+  else if LNodeType = 'EXIT' then
+  begin
+    LRoutineType := ACodeGenerator.GetRoutineType();
+    if LRoutineType = '' then
+      raise Exception.Create('Exit statement outside function/procedure');
+    
+    // Check if we're inside a loop
+    if ACodeGenerator.GetLoopDepth > 0 then
+    begin
+      // Inside loop - use flag approach
+      LChildren := ACodeGenerator.GetNodeChildren(ANode);
+      if (LChildren <> nil) and (LChildren.Count > 0) then
+      begin
+        // Exit(value)
+        LExitValue := NitroPascal.CodeGen.Expressions.GenerateExpression(
+          ACodeGenerator, LChildren.Items[0] as TJSONObject);
+        ACodeGenerator.EmitLine('Result = %s;', [LExitValue]);
+      end;
+      ACodeGenerator.EmitLine('_exit_requested = true;', []);
+      ACodeGenerator.EmitLine('return np::LoopControl::Break;', []);
+    end
+    else
+    begin
+      // Outside loop - normal return
+      LChildren := ACodeGenerator.GetNodeChildren(ANode);
+      if (LChildren <> nil) and (LChildren.Count > 0) then
+      begin
+        // Exit(value)
+        LExitValue := NitroPascal.CodeGen.Expressions.GenerateExpression(
+          ACodeGenerator, LChildren.Items[0] as TJSONObject);
+        ACodeGenerator.EmitLine('Result = %s;', [LExitValue]);
+        ACodeGenerator.EmitLine('return Result;', []);
+      end
+      else
+      begin
+        // Plain Exit
+        if LRoutineType = 'FUNCTION' then
+          ACodeGenerator.EmitLine('return Result;', [])
+        else
+          ACodeGenerator.EmitLine('return;', []);
+      end;
+    end;
+  end;
+end;
+
+procedure GenerateExternalCallWithStringConversions(const ACodeGenerator: TNPCodeGenerator;
+  const AFuncName: string; const AFuncInfo: TExternalFunctionInfo;
+  const AArgExprs: TArray<string>);
+var
+  LI: Integer;
+  LParamType: string;
+  LArgExpr: string;
+  LNeedsTempBlock: Boolean;
+  LTempVars: TStringList;
+  LConvertedArgs: TStringBuilder;
+  LTempVarName: string;
+begin
+  // Determine if we need temp variables (ANSI strings)
+  LNeedsTempBlock := False;
+  for LI := 0 to Min(High(AArgExprs), High(AFuncInfo.Parameters)) do
+  begin
+    LParamType := AFuncInfo.Parameters[LI].CppType;
+    LArgExpr := AArgExprs[LI];
+    if (LParamType = 'const char*') and LArgExpr.Contains('np::String(') then
+    begin
+      LNeedsTempBlock := True;
+      Break;
+    end;
+  end;
+  
+  if LNeedsTempBlock then
+  begin
+    // Generate block with temp variables for ANSI conversion
+    ACodeGenerator.EmitLine('{', []);
+    ACodeGenerator.IncIndent();
+    
+    LTempVars := TStringList.Create();
+    LConvertedArgs := TStringBuilder.Create();
+    try
+      // Generate temp variables for string parameters
+      for LI := 0 to Min(High(AArgExprs), High(AFuncInfo.Parameters)) do
+      begin
+        LParamType := AFuncInfo.Parameters[LI].CppType;
+        LArgExpr := AArgExprs[LI];
+        
+        if (LParamType = 'const char*') and LArgExpr.Contains('np::String(') then
+        begin
+          // ANSI string - need temp variable
+          LTempVarName := Format('_temp_str_%d', [LI]);
+          ACodeGenerator.EmitLine('auto %s = %s.to_ansi();', [LTempVarName, LArgExpr]);
+          LTempVars.Add(Format('%s.c_str()', [LTempVarName]));
+        end
+        else
+          LTempVars.Add(LArgExpr);
+      end;
+      
+      // Build converted args list
+      for LI := 0 to LTempVars.Count - 1 do
+      begin
+        if LI > 0 then
+          LConvertedArgs.Append(', ');
+        LConvertedArgs.Append(LTempVars[LI]);
+      end;
+      
+      // Emit function call
+      ACodeGenerator.EmitLine('%s(%s);', [AFuncName, LConvertedArgs.ToString()]);
+    finally
+      LConvertedArgs.Free();
+      LTempVars.Free();
+    end;
+    
+    ACodeGenerator.DecIndent();
+    ACodeGenerator.EmitLine('}', []);
+  end
+  else
+  begin
+    // No temp variables needed - direct call with .c_str_wide() for Unicode
+    LConvertedArgs := TStringBuilder.Create();
+    try
+      for LI := 0 to High(AArgExprs) do
+      begin
+        if LI > 0 then
+          LConvertedArgs.Append(', ');
+        
+        if LI <= High(AFuncInfo.Parameters) then
+        begin
+          LParamType := AFuncInfo.Parameters[LI].CppType;
+          LArgExpr := AArgExprs[LI];
+          
+          if (LParamType = 'const wchar_t*') and LArgExpr.Contains('np::String(') then
+            // Unicode string - convert with .c_str_wide()
+            LConvertedArgs.AppendFormat('%s.c_str_wide()', [LArgExpr])
+          else
+            LConvertedArgs.Append(LArgExpr);
+        end
+        else
+          LConvertedArgs.Append(AArgExprs[LI]);
+      end;
+      
+      ACodeGenerator.EmitLine('%s(%s);', [AFuncName, LConvertedArgs.ToString()]);
+    finally
+      LConvertedArgs.Free();
+    end;
+  end;
 end;
 
 procedure GenerateCall(const ACodeGenerator: TNPCodeGenerator; const ACallNode: TJSONObject);
@@ -180,6 +314,11 @@ var
   LExpr: TJSONValue;
   LExprStr: string;
   LRTLName: string;
+  LIsExternal: Boolean;
+  LExternalInfo: TExternalFunctionInfo;
+  LArgExprs: TArray<string>;
+  LRoutineType: string;
+  LExitValue: string;
 begin
   LChildren := ACodeGenerator.GetNodeChildren(ACallNode);
   if LChildren = nil then
@@ -191,6 +330,91 @@ begin
   if LChildren.Count > 0 then
     LFuncName := ACodeGenerator.GetNodeAttribute(LChildren.Items[0] as TJSONObject, 'name');
   
+  // ============================================================================
+  // SPECIAL HANDLING FOR CONTROL FLOW STATEMENTS (break/continue/exit)
+  // ============================================================================
+  
+  if SameText(LFuncName, 'break') then
+  begin
+    if ACodeGenerator.GetLoopDepth = 0 then
+      raise Exception.Create('Break statement outside loop');
+    ACodeGenerator.EmitLine('return np::LoopControl::Break;', []);
+    Exit;
+  end
+  else if SameText(LFuncName, 'continue') then
+  begin
+    if ACodeGenerator.GetLoopDepth = 0 then
+      raise Exception.Create('Continue statement outside loop');
+    ACodeGenerator.EmitLine('return np::LoopControl::Continue;', []);
+    Exit;
+  end
+  else if SameText(LFuncName, 'exit') then
+  begin
+    LRoutineType := ACodeGenerator.GetRoutineType();
+    if LRoutineType = '' then
+      raise Exception.Create('Exit statement outside function/procedure');
+    
+    // Check if we're inside a loop
+    if ACodeGenerator.GetLoopDepth > 0 then
+    begin
+      // Inside loop - use flag approach
+      if LChildren.Count > 1 then
+      begin
+        LExpressionsNode := LChildren.Items[1] as TJSONObject;
+        LExprChildren := ACodeGenerator.GetNodeChildren(LExpressionsNode);
+        
+        if (LExprChildren <> nil) and (LExprChildren.Count > 0) then
+        begin
+          // Exit(value)
+          LExitValue := NitroPascal.CodeGen.Expressions.GenerateExpression(
+            ACodeGenerator, LExprChildren.Items[0] as TJSONObject);
+          ACodeGenerator.EmitLine('Result = %s;', [LExitValue]);
+        end;
+      end;
+      ACodeGenerator.EmitLine('_exit_requested = true;', []);
+      ACodeGenerator.EmitLine('return np::LoopControl::Break;', []);
+    end
+    else
+    begin
+      // Outside loop - normal return
+      if LChildren.Count > 1 then
+      begin
+        LExpressionsNode := LChildren.Items[1] as TJSONObject;
+        LExprChildren := ACodeGenerator.GetNodeChildren(LExpressionsNode);
+        
+        if (LExprChildren <> nil) and (LExprChildren.Count > 0) then
+        begin
+          // Exit(value)
+          LExitValue := NitroPascal.CodeGen.Expressions.GenerateExpression(
+            ACodeGenerator, LExprChildren.Items[0] as TJSONObject);
+          ACodeGenerator.EmitLine('Result = %s;', [LExitValue]);
+          ACodeGenerator.EmitLine('return Result;', []);
+        end
+        else
+        begin
+          // Plain Exit
+          if LRoutineType = 'FUNCTION' then
+            ACodeGenerator.EmitLine('return Result;', [])
+          else
+            ACodeGenerator.EmitLine('return;', []);
+        end;
+      end
+      else
+      begin
+        // Plain Exit (no arguments)
+        if LRoutineType = 'FUNCTION' then
+          ACodeGenerator.EmitLine('return Result;', [])
+        else
+          ACodeGenerator.EmitLine('return;', []);
+      end;
+    end;
+    Exit;
+  end;
+  
+  // ============================================================================
+  // NORMAL FUNCTION CALL HANDLING
+  // ============================================================================
+  
   // Second child is arguments
   if LChildren.Count > 1 then
   begin
@@ -199,12 +423,14 @@ begin
     
     if LExprChildren <> nil then
     begin
+      SetLength(LArgExprs, LExprChildren.Count);
       for LI := 0 to LExprChildren.Count - 1 do
       begin
         LExpr := LExprChildren.Items[LI];
         if LExpr is TJSONObject then
         begin
           LExprStr := NitroPascal.CodeGen.Expressions.GenerateExpression(ACodeGenerator, LExpr as TJSONObject);
+          LArgExprs[LI] := LExprStr;
           if LArgs <> '' then
             LArgs := LArgs + ', ';
           LArgs := LArgs + LExprStr;
@@ -213,15 +439,27 @@ begin
     end;
   end;
   
-  // Map Delphi RTL functions (case-insensitive) to correct C++ RTL names
-  LRTLName := GetRTLFunctionName(LFuncName);
+  // Check if external function
+  LIsExternal := ACodeGenerator.IsExternalFunction(LFuncName);
   
-  if LRTLName <> '' then
-    // It's an RTL function - use normalized name with np:: prefix
-    ACodeGenerator.EmitLine('np::%s(%s);', [LRTLName, LArgs])
+  if LIsExternal then
+  begin
+    // External function - handle string conversions
+    LExternalInfo := ACodeGenerator.GetExternalFunctionInfo(LFuncName);
+    GenerateExternalCallWithStringConversions(ACodeGenerator, LFuncName, LExternalInfo, LArgExprs);
+  end
   else
-    // User function - use original name without np:: prefix
-    ACodeGenerator.EmitLine('%s(%s);', [LFuncName, LArgs]);
+  begin
+    // Map Delphi RTL functions (case-insensitive) to correct C++ RTL names
+    LRTLName := NitroPascal.CodeGen.GetRTLFunctionName(LFuncName);
+    
+    if LRTLName <> '' then
+      // It's an RTL function - use normalized name with np:: prefix
+      ACodeGenerator.EmitLine('np::%s(%s);', [LRTLName, LArgs])
+    else
+      // User function - use original name without np:: prefix
+      ACodeGenerator.EmitLine('%s(%s);', [LFuncName, LArgs]);
+  end;
 end;
 
 procedure GenerateAssignment(const ACodeGenerator: TNPCodeGenerator; const AAssignNode: TJSONObject);
@@ -304,7 +542,11 @@ begin
   LThenNode := ACodeGenerator.FindNodeByType(LChildren, 'THEN');
   LElseNode := ACodeGenerator.FindNodeByType(LChildren, 'ELSE');
   
-  ACodeGenerator.EmitLine('if (%s) {', [LCondition]);
+  // Add parentheses only if condition doesn't already have them
+  if LCondition.StartsWith('(') and LCondition.EndsWith(')') then
+    ACodeGenerator.EmitLine('if %s {', [LCondition])
+  else
+    ACodeGenerator.EmitLine('if (%s) {', [LCondition]);
   ACodeGenerator.IncIndent();
   
   if LThenNode <> nil then
@@ -518,6 +760,9 @@ var
   LChildObj: TJSONObject;
   LNodeType: string;
   LIsDownto: Boolean;
+  LHasControl: Boolean;
+  LHasExit: Boolean;
+  LRoutineType: string;
 begin
   LChildren := ACodeGenerator.GetNodeChildren(AForNode);
   if LChildren = nil then
@@ -574,42 +819,82 @@ begin
       LStatementsNode := LChildObj;
   end;
   
-  // Emit runtime ForLoop or ForLoopDownto with lambda
-  if LIsDownto then
-    ACodeGenerator.EmitLine('np::ForLoopDownto(%s, %s, [&](np::Integer %s) {', [LStartExpr, LEndExpr, LIteratorName])
-  else
-    ACodeGenerator.EmitLine('np::ForLoop(%s, %s, [&](np::Integer %s) {', [LStartExpr, LEndExpr, LIteratorName]);
+  // Check if loop body has Break/Continue
+  LHasControl := HasLoopControl(ACodeGenerator, LStatementsNode);
   
-  ACodeGenerator.IncIndent();
+  // Check if loop body has Exit
+  LHasExit := HasExit(ACodeGenerator, LStatementsNode);
   
-  // Generate loop body
-  if LStatementsNode <> nil then
-    GenerateStatements(ACodeGenerator, LStatementsNode)
-  else
-  begin
-    // No STATEMENTS node - process direct children as individual statements
-    // (single statement without begin..end)
-    for LI := 0 to LChildren.Count - 1 do
+  // If has Exit, declare flag before loop
+  if LHasExit then
+    ACodeGenerator.EmitLine('bool _exit_requested = false;', []);
+  
+  // Track loop depth
+  ACodeGenerator.EnterLoop();
+  try
+    // Emit runtime ForLoop or ForLoopDownto with lambda
+    // Note: ALWAYS return LoopControl::Normal to ensure SFINAE picks correct overload
+    // This prevents ambiguity between void and LoopControl overloads in runtime.h
+    if LIsDownto then
+      ACodeGenerator.EmitLine('np::ForLoopDownto(%s, %s, [&](np::Integer _loop_iter) {', [LStartExpr, LEndExpr])
+    else
+      ACodeGenerator.EmitLine('np::ForLoop(%s, %s, [&](np::Integer _loop_iter) {', [LStartExpr, LEndExpr]);
+    
+    ACodeGenerator.IncIndent();
+    
+    // Assign lambda parameter to outer loop variable
+    ACodeGenerator.EmitLine('%s = _loop_iter;', [LIteratorName]);
+    
+    // Generate loop body
+    if LStatementsNode <> nil then
+      GenerateStatements(ACodeGenerator, LStatementsNode)
+    else
     begin
-      LChild := LChildren.Items[LI];
-      if LChild is TJSONObject then
+      // No STATEMENTS node - process direct children as individual statements
+      for LI := 0 to LChildren.Count - 1 do
       begin
-        LChildObj := LChild as TJSONObject;
-        LNodeType := ACodeGenerator.GetNodeType(LChildObj);
-        // Skip the FOR loop metadata nodes (IDENTIFIER, FROM, TO, DOWNTO)
-        if (LNodeType <> 'IDENTIFIER') and 
-           (LNodeType <> 'FROM') and 
-           (LNodeType <> 'TO') and 
-           (LNodeType <> 'DOWNTO') then
+        LChild := LChildren.Items[LI];
+        if LChild is TJSONObject then
         begin
-          GenerateStatement(ACodeGenerator, LChildObj);
+          LChildObj := LChild as TJSONObject;
+          LNodeType := ACodeGenerator.GetNodeType(LChildObj);
+          // Skip the FOR loop metadata nodes
+          if (LNodeType <> 'IDENTIFIER') and 
+             (LNodeType <> 'FROM') and 
+             (LNodeType <> 'TO') and 
+             (LNodeType <> 'DOWNTO') then
+          begin
+            GenerateStatement(ACodeGenerator, LChildObj);
+          end;
         end;
       end;
     end;
+    
+    // Conditionally emit return based on loop control/exit
+    // If loop has break/continue/exit, emit return to use LoopControl overload
+    // Otherwise, omit return to use more efficient void overload
+    if LHasControl or LHasExit then
+      ACodeGenerator.EmitLine('return np::LoopControl::Normal;', []);
+    
+    ACodeGenerator.DecIndent();
+    ACodeGenerator.EmitLine('});', []);
+  finally
+    ACodeGenerator.ExitLoop();
   end;
   
-  ACodeGenerator.DecIndent();
-  ACodeGenerator.EmitLine('});', []);
+  // If has Exit, check flag after loop
+  if LHasExit then
+  begin
+    LRoutineType := ACodeGenerator.GetRoutineType();
+    ACodeGenerator.EmitLine('if (_exit_requested) {', []);
+    ACodeGenerator.IncIndent();
+    if LRoutineType = 'FUNCTION' then
+      ACodeGenerator.EmitLine('return Result;', [])
+    else
+      ACodeGenerator.EmitLine('return;', []);
+    ACodeGenerator.DecIndent();
+    ACodeGenerator.EmitLine('}', []);
+  end;
 end;
 
 procedure GenerateWhileLoop(const ACodeGenerator: TNPCodeGenerator; const AWhileNode: TJSONObject);
@@ -617,6 +902,9 @@ var
   LChildren: TJSONArray;
   LCondition: string;
   LStatementsNode: TJSONObject;
+  LHasControl: Boolean;
+  LHasExit: Boolean;
+  LRoutineType: string;
 begin
   LChildren := ACodeGenerator.GetNodeChildren(AWhileNode);
   if LChildren = nil then
@@ -631,15 +919,53 @@ begin
   else
     LStatementsNode := nil;
   
-  // Emit runtime WhileLoop with lambdas
-  ACodeGenerator.EmitLine('np::WhileLoop([&]() { return %s; }, [&]() {', [LCondition]);
-  ACodeGenerator.IncIndent();
+  // Check if loop body has Break/Continue
+  LHasControl := HasLoopControl(ACodeGenerator, LStatementsNode);
   
-  if LStatementsNode <> nil then
-    GenerateStatements(ACodeGenerator, LStatementsNode);
+  // Check if loop body has Exit
+  LHasExit := HasExit(ACodeGenerator, LStatementsNode);
   
-  ACodeGenerator.DecIndent();
-  ACodeGenerator.EmitLine('});', []);
+  // If has Exit, declare flag before loop
+  if LHasExit then
+    ACodeGenerator.EmitLine('bool _exit_requested = false;', []);
+  
+  // Track loop depth
+  ACodeGenerator.EnterLoop();
+  try
+    // Emit runtime WhileLoop with lambdas
+    // Note: ALWAYS return LoopControl::Normal to ensure correct overload selection
+    ACodeGenerator.EmitLine('np::WhileLoop([&]() { return %s; }, [&]() {', [LCondition]);
+    
+    ACodeGenerator.IncIndent();
+    
+    if LStatementsNode <> nil then
+      GenerateStatements(ACodeGenerator, LStatementsNode);
+    
+    // Conditionally emit return based on loop control/exit
+    // If loop has break/continue/exit, emit return to use LoopControl overload
+    // Otherwise, omit return to use more efficient void overload
+    if LHasControl or LHasExit then
+      ACodeGenerator.EmitLine('return np::LoopControl::Normal;', []);
+    
+    ACodeGenerator.DecIndent();
+    ACodeGenerator.EmitLine('});', []);
+  finally
+    ACodeGenerator.ExitLoop();
+  end;
+  
+  // If has Exit, check flag after loop
+  if LHasExit then
+  begin
+    LRoutineType := ACodeGenerator.GetRoutineType();
+    ACodeGenerator.EmitLine('if (_exit_requested) {', []);
+    ACodeGenerator.IncIndent();
+    if LRoutineType = 'FUNCTION' then
+      ACodeGenerator.EmitLine('return Result;', [])
+    else
+      ACodeGenerator.EmitLine('return;', []);
+    ACodeGenerator.DecIndent();
+    ACodeGenerator.EmitLine('}', []);
+  end;
 end;
 
 procedure GenerateRepeatLoop(const ACodeGenerator: TNPCodeGenerator; const ARepeatNode: TJSONObject);
@@ -649,6 +975,9 @@ var
   LConditionNode: TJSONObject;
   LConditionChildren: TJSONArray;
   LCondition: string;
+  LHasControl: Boolean;
+  LHasExit: Boolean;
+  LRoutineType: string;
 begin
   LChildren := ACodeGenerator.GetNodeChildren(ARepeatNode);
   if LChildren = nil then
@@ -674,15 +1003,53 @@ begin
   else
     Exit;
   
-  // Emit runtime RepeatUntil with lambdas
-  ACodeGenerator.EmitLine('np::RepeatUntil([&]() {', []);
-  ACodeGenerator.IncIndent();
+  // Check if loop body has Break/Continue
+  LHasControl := HasLoopControl(ACodeGenerator, LStatementsNode);
   
-  if LStatementsNode <> nil then
-    GenerateStatements(ACodeGenerator, LStatementsNode);
+  // Check if loop body has Exit
+  LHasExit := HasExit(ACodeGenerator, LStatementsNode);
   
-  ACodeGenerator.DecIndent();
-  ACodeGenerator.EmitLine('}, [&]() { return %s; });', [LCondition]);
+  // If has Exit, declare flag before loop
+  if LHasExit then
+    ACodeGenerator.EmitLine('bool _exit_requested = false;', []);
+  
+  // Track loop depth
+  ACodeGenerator.EnterLoop();
+  try
+    // Emit runtime RepeatUntil with lambdas
+    // Note: ALWAYS return LoopControl::Normal to ensure correct overload selection
+    ACodeGenerator.EmitLine('np::RepeatUntil([&]() {', []);
+    
+    ACodeGenerator.IncIndent();
+    
+    if LStatementsNode <> nil then
+      GenerateStatements(ACodeGenerator, LStatementsNode);
+    
+    // Conditionally emit return based on loop control/exit
+    // If loop has break/continue/exit, emit return to use LoopControl overload
+    // Otherwise, omit return to use more efficient void overload
+    if LHasControl or LHasExit then
+      ACodeGenerator.EmitLine('return np::LoopControl::Normal;', []);
+    
+    ACodeGenerator.DecIndent();
+    ACodeGenerator.EmitLine('}, [&]() { return %s; });', [LCondition]);
+  finally
+    ACodeGenerator.ExitLoop();
+  end;
+  
+  // If has Exit, check flag after loop
+  if LHasExit then
+  begin
+    LRoutineType := ACodeGenerator.GetRoutineType();
+    ACodeGenerator.EmitLine('if (_exit_requested) {', []);
+    ACodeGenerator.IncIndent();
+    if LRoutineType = 'FUNCTION' then
+      ACodeGenerator.EmitLine('return Result;', [])
+    else
+      ACodeGenerator.EmitLine('return;', []);
+    ACodeGenerator.DecIndent();
+    ACodeGenerator.EmitLine('}', []);
+  end;
 end;
 
 procedure GenerateWithStatement(const ACodeGenerator: TNPCodeGenerator; const AWithNode: TJSONObject);
@@ -708,7 +1075,6 @@ begin
     Exit;
   
   // For now, handle single WITH expression
-  // TODO: Multiple WITH expressions (with A, B, C do...)
   LWithExpr := NitroPascal.CodeGen.Expressions.GenerateExpression(
     ACodeGenerator,
     LExprChildren.Items[0] as TJSONObject);
@@ -729,7 +1095,7 @@ begin
   end
   else
   begin
-    // Check if there's a direct statement child (single statement without begin/end)
+    // Check if there's a direct statement child
     if LChildren.Count > 1 then
     begin
       LStmtChild := LChildren.Items[1];
@@ -746,6 +1112,311 @@ begin
   
   ACodeGenerator.DecIndent();
   ACodeGenerator.EmitLine('}', []);
+end;
+
+procedure GenerateTryStatement(const ACodeGenerator: TNPCodeGenerator; const ATryNode: TJSONObject);
+var
+  LChildren: TJSONArray;
+  LTryStatements: TJSONObject;
+  LExceptNode: TJSONObject;
+  LFinallyNode: TJSONObject;
+  LExceptStatements: TJSONObject;
+  LFinallyStatements: TJSONObject;
+begin
+  LChildren := ACodeGenerator.GetNodeChildren(ATryNode);
+  if LChildren = nil then
+    Exit;
+  
+  // First child is the try block STATEMENTS
+  if LChildren.Count = 0 then
+    Exit;
+  
+  LTryStatements := LChildren.Items[0] as TJSONObject;
+  
+  // Second child is either EXCEPT or FINALLY
+  if LChildren.Count < 2 then
+    Exit;
+  
+  LExceptNode := ACodeGenerator.FindNodeByType(LChildren, 'EXCEPT');
+  LFinallyNode := ACodeGenerator.FindNodeByType(LChildren, 'FINALLY');
+  
+  if LExceptNode <> nil then
+  begin
+    // Generate try...except
+    ACodeGenerator.EmitLine('try {', []);
+    ACodeGenerator.IncIndent();
+    
+    // Generate try block statements
+    if ACodeGenerator.GetNodeType(LTryStatements) = 'STATEMENTS' then
+      GenerateStatements(ACodeGenerator, LTryStatements);
+    
+    ACodeGenerator.DecIndent();
+    ACodeGenerator.EmitLine('} catch (const np::Exception& e) {', []);
+    ACodeGenerator.IncIndent();
+    
+    // Set the current exception message so GetExceptionMessage() works
+    ACodeGenerator.EmitLine('np::_current_exception_message = e.Message;', []);
+    
+    // Generate except block statements
+    LExceptStatements := ACodeGenerator.FindNodeByType(
+      ACodeGenerator.GetNodeChildren(LExceptNode), 'STATEMENTS');
+    
+    if LExceptStatements <> nil then
+      GenerateStatements(ACodeGenerator, LExceptStatements)
+    else
+    begin
+      // No STATEMENTS child - check direct children of EXCEPT node
+      LChildren := ACodeGenerator.GetNodeChildren(LExceptNode);
+      if LChildren <> nil then
+        GenerateStatements(ACodeGenerator, LExceptNode);
+    end;
+    
+    ACodeGenerator.DecIndent();
+    ACodeGenerator.EmitLine('}', []);
+  end
+  else if LFinallyNode <> nil then
+  begin
+    // Generate try...finally
+    // In C++, finally is implemented as:
+    // 1. try { } catch (...) { finally_code; throw; }
+    // 2. finally_code (also executed on normal path)
+    
+    ACodeGenerator.EmitLine('try {', []);
+    ACodeGenerator.IncIndent();
+    
+    // Generate try block statements
+    if ACodeGenerator.GetNodeType(LTryStatements) = 'STATEMENTS' then
+      GenerateStatements(ACodeGenerator, LTryStatements);
+    
+    ACodeGenerator.DecIndent();
+    ACodeGenerator.EmitLine('} catch (...) {', []);
+    ACodeGenerator.IncIndent();
+    
+    // Generate finally block statements (exception path)
+    LFinallyStatements := ACodeGenerator.FindNodeByType(
+      ACodeGenerator.GetNodeChildren(LFinallyNode), 'STATEMENTS');
+    
+    if LFinallyStatements <> nil then
+      GenerateStatements(ACodeGenerator, LFinallyStatements)
+    else
+    begin
+      // No STATEMENTS child - check direct children of FINALLY node
+      LChildren := ACodeGenerator.GetNodeChildren(LFinallyNode);
+      if LChildren <> nil then
+        GenerateStatements(ACodeGenerator, LFinallyNode);
+    end;
+    
+    // Re-throw the exception
+    ACodeGenerator.EmitLine('throw;', []);
+    
+    ACodeGenerator.DecIndent();
+    ACodeGenerator.EmitLine('}', []);
+    
+    // Generate finally block statements (normal path)
+    if LFinallyStatements <> nil then
+      GenerateStatements(ACodeGenerator, LFinallyStatements)
+    else
+    begin
+      // No STATEMENTS child - check direct children of FINALLY node
+      LChildren := ACodeGenerator.GetNodeChildren(LFinallyNode);
+      if LChildren <> nil then
+        GenerateStatements(ACodeGenerator, LFinallyNode);
+    end;
+  end;
+end;
+
+function HasLoopControl(const ACodeGenerator: TNPCodeGenerator; const AStatementsNode: TJSONObject): Boolean;
+var
+  LChildren: TJSONArray;
+  LI: Integer;
+  LChild: TJSONValue;
+  LChildObj: TJSONObject;
+  LNodeType: string;
+  LCallChildren: TJSONArray;
+  LFuncName: string;
+  LThenNode: TJSONObject;
+  LElseNode: TJSONObject;
+  LThenStatements: TJSONObject;
+  LElseStatements: TJSONObject;
+begin
+  Result := False;
+  
+  if AStatementsNode = nil then
+    Exit;
+  
+  LChildren := ACodeGenerator.GetNodeChildren(AStatementsNode);
+  if LChildren = nil then
+    Exit;
+  
+  for LI := 0 to LChildren.Count - 1 do
+  begin
+    LChild := LChildren.Items[LI];
+    if not (LChild is TJSONObject) then
+      Continue;
+    
+    LChildObj := LChild as TJSONObject;
+    LNodeType := ACodeGenerator.GetNodeType(LChildObj);
+    
+    // Found Break or Continue
+    if (LNodeType = 'BREAK') or (LNodeType = 'CONTINUE') then
+      Exit(True);
+    
+    // Check for break/continue as CALL nodes
+    if LNodeType = 'CALL' then
+    begin
+      LCallChildren := ACodeGenerator.GetNodeChildren(LChildObj);
+      if (LCallChildren <> nil) and (LCallChildren.Count > 0) then
+      begin
+        LFuncName := ACodeGenerator.GetNodeAttribute(LCallChildren.Items[0] as TJSONObject, 'name');
+        if SameText(LFuncName, 'break') or SameText(LFuncName, 'continue') then
+          Exit(True);
+      end;
+    end;
+    
+    // Recursively check compound statements
+    if (LNodeType = 'IF') then
+    begin
+      // Check THEN branch
+      LThenNode := ACodeGenerator.FindNodeByType(ACodeGenerator.GetNodeChildren(LChildObj), 'THEN');
+      if LThenNode <> nil then
+      begin
+        LThenStatements := ACodeGenerator.FindNodeByType(ACodeGenerator.GetNodeChildren(LThenNode), 'STATEMENTS');
+        if LThenStatements <> nil then
+        begin
+          if HasLoopControl(ACodeGenerator, LThenStatements) then
+            Exit(True);
+        end
+        else
+        begin
+          // No STATEMENTS child, check THEN node directly
+          if HasLoopControl(ACodeGenerator, LThenNode) then
+            Exit(True);
+        end;
+      end;
+      
+      // Check ELSE branch
+      LElseNode := ACodeGenerator.FindNodeByType(ACodeGenerator.GetNodeChildren(LChildObj), 'ELSE');
+      if LElseNode <> nil then
+      begin
+        LElseStatements := ACodeGenerator.FindNodeByType(ACodeGenerator.GetNodeChildren(LElseNode), 'STATEMENTS');
+        if LElseStatements <> nil then
+        begin
+          if HasLoopControl(ACodeGenerator, LElseStatements) then
+            Exit(True);
+        end
+        else
+        begin
+          // No STATEMENTS child, check ELSE node directly
+          if HasLoopControl(ACodeGenerator, LElseNode) then
+            Exit(True);
+        end;
+      end;
+    end
+    else if (LNodeType = 'CASE') then
+    begin
+      // Check case selectors
+      if HasLoopControl(ACodeGenerator, LChildObj) then
+        Exit(True);
+    end;
+    // Note: Don't recurse into nested loops
+  end;
+end;
+
+function HasExit(const ACodeGenerator: TNPCodeGenerator; const AStatementsNode: TJSONObject): Boolean;
+var
+  LChildren: TJSONArray;
+  LI: Integer;
+  LChild: TJSONValue;
+  LChildObj: TJSONObject;
+  LNodeType: string;
+  LCallChildren: TJSONArray;
+  LFuncName: string;
+  LThenNode: TJSONObject;
+  LElseNode: TJSONObject;
+  LThenStatements: TJSONObject;
+  LElseStatements: TJSONObject;
+begin
+  Result := False;
+  
+  if AStatementsNode = nil then
+    Exit;
+  
+  LChildren := ACodeGenerator.GetNodeChildren(AStatementsNode);
+  if LChildren = nil then
+    Exit;
+  
+  for LI := 0 to LChildren.Count - 1 do
+  begin
+    LChild := LChildren.Items[LI];
+    if not (LChild is TJSONObject) then
+      Continue;
+    
+    LChildObj := LChild as TJSONObject;
+    LNodeType := ACodeGenerator.GetNodeType(LChildObj);
+    
+    // Found EXIT node
+    if LNodeType = 'EXIT' then
+      Exit(True);
+    
+    // Check for exit as CALL node
+    if LNodeType = 'CALL' then
+    begin
+      LCallChildren := ACodeGenerator.GetNodeChildren(LChildObj);
+      if (LCallChildren <> nil) and (LCallChildren.Count > 0) then
+      begin
+        LFuncName := ACodeGenerator.GetNodeAttribute(LCallChildren.Items[0] as TJSONObject, 'name');
+        if SameText(LFuncName, 'exit') then
+          Exit(True);
+      end;
+    end;
+    
+    // Recursively check compound statements
+    if LNodeType = 'IF' then
+    begin
+      // Check THEN branch
+      LThenNode := ACodeGenerator.FindNodeByType(ACodeGenerator.GetNodeChildren(LChildObj), 'THEN');
+      if LThenNode <> nil then
+      begin
+        LThenStatements := ACodeGenerator.FindNodeByType(ACodeGenerator.GetNodeChildren(LThenNode), 'STATEMENTS');
+        if LThenStatements <> nil then
+        begin
+          if HasExit(ACodeGenerator, LThenStatements) then
+            Exit(True);
+        end
+        else
+        begin
+          // No STATEMENTS child, check THEN node directly
+          if HasExit(ACodeGenerator, LThenNode) then
+            Exit(True);
+        end;
+      end;
+      
+      // Check ELSE branch
+      LElseNode := ACodeGenerator.FindNodeByType(ACodeGenerator.GetNodeChildren(LChildObj), 'ELSE');
+      if LElseNode <> nil then
+      begin
+        LElseStatements := ACodeGenerator.FindNodeByType(ACodeGenerator.GetNodeChildren(LElseNode), 'STATEMENTS');
+        if LElseStatements <> nil then
+        begin
+          if HasExit(ACodeGenerator, LElseStatements) then
+            Exit(True);
+        end
+        else
+        begin
+          // No STATEMENTS child, check ELSE node directly
+          if HasExit(ACodeGenerator, LElseNode) then
+            Exit(True);
+        end;
+      end;
+    end
+    else if LNodeType = 'CASE' then
+    begin
+      // Check case selectors
+      if HasExit(ACodeGenerator, LChildObj) then
+        Exit(True);
+    end;
+    // Note: Don't recurse into nested loops - they handle their own Exit
+  end;
 end;
 
 end.

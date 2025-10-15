@@ -36,6 +36,8 @@ uses
   System.SysUtils,
   System.Generics.Collections;
 
+// Note: GetRTLFunctionName is now centralized in NitroPascal.CodeGen unit
+
 function GenerateExpression(const ACodeGenerator: TNPCodeGenerator; const AExprNode: TJSONObject): string;
 var
   LNodeType: string;
@@ -105,6 +107,14 @@ begin
     LChildren := ACodeGenerator.GetNodeChildren(AExprNode);
     if (LChildren <> nil) and (LChildren.Count > 0) then
       Result := '(&' + GenerateExpression(ACodeGenerator, LChildren.Items[0] as TJSONObject) + ')';
+  end
+  else if LNodeType = 'IN' then
+  begin
+    // Handle IN operator (set membership test)
+    LChildren := ACodeGenerator.GetNodeChildren(AExprNode);
+    if (LChildren <> nil) and (LChildren.Count >= 2) then
+      Result := 'np::In(' + GenerateExpression(ACodeGenerator, LChildren.Items[0] as TJSONObject) + ', ' +
+                GenerateExpression(ACodeGenerator, LChildren.Items[1] as TJSONObject) + ')';
   end
   else if (LNodeType = 'ADD') or (LNodeType = 'SUB') or (LNodeType = 'MUL') or 
           (LNodeType = 'DIV') or (LNodeType = 'FDIV') or (LNodeType = 'MOD') or (LNodeType = 'SHL') or 
@@ -257,12 +267,22 @@ function GenerateCallExpression(const ACodeGenerator: TNPCodeGenerator; const AC
 var
   LChildren: TJSONArray;
   LFuncName: string;
+  LRTLName: string;
   LArgs: string;
   LExpressionsNode: TJSONObject;
   LExprChildren: TJSONArray;
   LI: Integer;
+  LJ: Integer;
   LExpr: TJSONValue;
+  LElem: TJSONValue;
   LExprStr: string;
+  LFirstArg: string;
+  LArrayElements: TJSONArray;
+  LElementChildren: TJSONArray;
+  LExprObj: TJSONObject;
+  LExprType: string;
+  LActualNode: TJSONObject;
+  LExprNodeChildren: TJSONArray;
 begin
   Result := '';
   
@@ -275,6 +295,54 @@ begin
   // First child is function name
   if LChildren.Count > 0 then
     LFuncName := ACodeGenerator.GetNodeAttribute(LChildren.Items[0] as TJSONObject, 'name');
+  
+  // Handle SizeOf specially - it's a C++ operator, not a function
+  if SameText(LFuncName, 'SizeOf') then
+  begin
+    // Get first argument
+    if LChildren.Count > 1 then
+    begin
+      LExpressionsNode := LChildren.Items[1] as TJSONObject;
+      LExprChildren := ACodeGenerator.GetNodeChildren(LExpressionsNode);
+      
+      if (LExprChildren <> nil) and (LExprChildren.Count > 0) then
+      begin
+        LExpr := LExprChildren.Items[0];
+        if LExpr is TJSONObject then
+        begin
+          LExprObj := LExpr as TJSONObject;
+          LExprType := ACodeGenerator.GetNodeType(LExprObj);
+          
+          // Unwrap EXPRESSION wrapper if present
+          if LExprType = 'EXPRESSION' then
+          begin
+            LExprNodeChildren := ACodeGenerator.GetNodeChildren(LExprObj);
+            if (LExprNodeChildren <> nil) and (LExprNodeChildren.Count > 0) and 
+               (LExprNodeChildren.Items[0] is TJSONObject) then
+            begin
+              LExprObj := LExprNodeChildren.Items[0] as TJSONObject;
+              LExprType := ACodeGenerator.GetNodeType(LExprObj);
+            end;
+          end;
+          
+          // Check if it's an IDENTIFIER (could be a type name)
+          if LExprType = 'IDENTIFIER' then
+          begin
+            LFirstArg := ACodeGenerator.GetNodeAttribute(LExprObj, 'name');
+            // Try to translate as a type
+            LFirstArg := ACodeGenerator.TranslateType(LFirstArg);
+          end
+          else
+          begin
+            // It's an expression
+            LFirstArg := GenerateExpression(ACodeGenerator, LExprObj);
+          end;
+          Result := Format('sizeof(%s)', [LFirstArg]);
+          Exit;
+        end;
+      end;
+    end;
+  end;
   
   // Second child is arguments
   if LChildren.Count > 1 then
@@ -289,6 +357,60 @@ begin
         LExpr := LExprChildren.Items[LI];
         if LExpr is TJSONObject then
         begin
+          // Special handling for Format function with array literals
+          // Format('fmt', ['arg1', 'arg2']) → np::Format(fmt, arg1, arg2)
+          if SameText(LFuncName, 'Format') and (LI = 1) then
+          begin
+            // The second argument might be wrapped in EXPRESSION node
+            LExprObj := LExpr as TJSONObject;
+            LExprType := ACodeGenerator.GetNodeType(LExprObj);
+            LActualNode := LExprObj;
+            
+            // Unwrap EXPRESSION wrapper if present
+            if LExprType = 'EXPRESSION' then
+            begin
+              LExprNodeChildren := ACodeGenerator.GetNodeChildren(LExprObj);
+              if (LExprNodeChildren <> nil) and (LExprNodeChildren.Count > 0) and 
+                 (LExprNodeChildren.Items[0] is TJSONObject) then
+              begin
+                LActualNode := LExprNodeChildren.Items[0] as TJSONObject;
+                LExprType := ACodeGenerator.GetNodeType(LActualNode);
+              end;
+            end;
+            
+            // Check if it's a SET (array literal)
+            if LExprType = 'SET' then
+            begin
+              // This is the array parameter for Format - unwrap its elements
+              LArrayElements := ACodeGenerator.GetNodeChildren(LActualNode);
+              if LArrayElements <> nil then
+              begin
+                for LJ := 0 to LArrayElements.Count - 1 do
+                begin
+                  LElem := LArrayElements.Items[LJ];
+                  if LElem is TJSONObject then
+                  begin
+                    // Each element is wrapped in an ELEMENT node
+                    if ACodeGenerator.GetNodeType(LElem as TJSONObject) = 'ELEMENT' then
+                    begin
+                      LElementChildren := ACodeGenerator.GetNodeChildren(LElem as TJSONObject);
+                      if (LElementChildren <> nil) and (LElementChildren.Count > 0) then
+                      begin
+                        // Get the expression inside the ELEMENT
+                        LExprStr := GenerateExpression(ACodeGenerator, LElementChildren.Items[0] as TJSONObject);
+                        if LArgs <> '' then
+                          LArgs := LArgs + ', ';
+                        LArgs := LArgs + LExprStr;
+                      end;
+                    end;
+                  end;
+                end;
+              end;
+              Continue; // Skip normal processing for this argument
+            end;
+          end;
+          
+          // Normal argument processing
           LExprStr := GenerateExpression(ACodeGenerator, LExpr as TJSONObject);
           if LArgs <> '' then
             LArgs := LArgs + ', ';
@@ -298,8 +420,14 @@ begin
     end;
   end;
   
-  // Return function call expression (no semicolon, no np:: prefix for user functions)
-  Result := Format('%s(%s)', [LFuncName, LArgs]);
+  // Check if it's an RTL function using centralized mapping
+  LRTLName := NitroPascal.CodeGen.GetRTLFunctionName(LFuncName);
+  
+  // Return function call expression with np:: prefix for RTL functions
+  if LRTLName <> '' then
+    Result := Format('np::%s(%s)', [LRTLName, LArgs])
+  else
+    Result := Format('%s(%s)', [LFuncName, LArgs]);
 end;
 
 function GenerateDotExpression(const ACodeGenerator: TNPCodeGenerator; const ADotNode: TJSONObject): string;

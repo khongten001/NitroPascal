@@ -24,7 +24,8 @@ uses
   DelphiAST.Consts,
   DelphiAST.ProjectIndexer,
   NitroPascal.Errors,
-  NitroPascal.Utils;
+  NitroPascal.Utils,
+  NitroPascal.BuildSettings;
 
 type
   { TNPJSONWriter }
@@ -62,6 +63,8 @@ type
   public
     constructor Create;
     destructor Destroy; override;
+    
+    procedure SetupDefines(const ABuildSettings: TNPBuildSettings);
     
     function Parse(const AFilename: string; 
       var AErrorManager: TNPErrorManager): Boolean;
@@ -306,6 +309,88 @@ end;
 destructor TNPPasToJSON.Destroy;
 begin
   inherited;
+end;
+
+procedure TNPPasToJSON.SetupDefines(const ABuildSettings: TNPBuildSettings);
+var
+  LDefinesList: TStringList;
+  LParts: TArray<string>;
+  LArch: string;
+  LOS: string;
+begin
+  LDefinesList := TStringList.Create();
+  try
+    // 1. Add DEBUG or RELEASE based on optimization mode
+    if ABuildSettings.Optimize = omDebug then
+      LDefinesList.Add('DEBUG')
+    else
+      LDefinesList.Add('RELEASE');
+    
+    // 2. Add CONSOLE_APP or GUI_APP based on app type
+    if ABuildSettings.AppType = atConsole then
+      LDefinesList.Add('CONSOLE_APP')
+    else
+      LDefinesList.Add('GUI_APP');
+    
+    // 3. Parse target triplet for platform defines
+    if (not ABuildSettings.Target.IsEmpty) and 
+       (ABuildSettings.Target.ToLower <> 'native') then
+    begin
+      // Parse already-validated triplet: arch-os[-abi]
+      LParts := ABuildSettings.Target.ToLower.Split(['-']);
+      
+      if Length(LParts) >= 2 then
+      begin
+        LArch := LParts[0];
+        LOS := LParts[1];
+        
+        // Architecture defines
+        if (LArch = 'x86_64') or (LArch = 'amd64') then
+        begin
+          LDefinesList.Add('CPUX64');
+          if LOS.Contains('windows') then
+            LDefinesList.Add('WIN64');
+        end
+        else if (LArch = 'i386') or (LArch = 'i686') then
+        begin
+          LDefinesList.Add('CPU386');
+          if LOS.Contains('windows') then
+            LDefinesList.Add('WIN32');
+        end
+        else if (LArch = 'aarch64') or LArch.Contains('arm64') then
+        begin
+          LDefinesList.Add('CPUARM64');
+          LDefinesList.Add('ARM64');
+        end;
+        
+        // OS defines
+        if LOS.Contains('windows') then
+        begin
+          LDefinesList.Add('MSWINDOWS');
+          LDefinesList.Add('WINDOWS');
+        end
+        else if LOS.Contains('linux') then
+        begin
+          LDefinesList.Add('LINUX');
+          LDefinesList.Add('POSIX');
+          LDefinesList.Add('UNIX');
+        end
+        else if LOS.Contains('darwin') or LOS.Contains('macos') then
+        begin
+          LDefinesList.Add('MACOS');
+          LDefinesList.Add('DARWIN');
+          LDefinesList.Add('POSIX');
+          LDefinesList.Add('UNIX');
+        end;
+      end;
+    end;
+    
+    // Convert list to semicolon-separated string for DelphiAST
+    FDefines := string.Join(';', LDefinesList.ToStringArray());
+    
+  finally
+    LDefinesList.Free();
+  end;
 end;
 
 function TNPPasToJSON.Parse(const AFilename: string; 

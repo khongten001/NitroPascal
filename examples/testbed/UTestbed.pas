@@ -19,55 +19,72 @@ implementation
 
 uses
   System.SysUtils,
-  System.IOUtils,
   NitroPascal.Utils,
   UTest;
 
 procedure RunTestbed();
 var
-  LNum: Integer;
+  LTestSuite: TTest;
 begin
+  LTestSuite := TTest.Create();
   try
-    LNum := 001;
-    case LNum of
-      001: Test('ProgramSimple.pas', [], True, True);
-      002: Test('ProgramVariables.pas', [], True, True);
-      003: Test('ProgramFunctions.pas', [], True, True);
-      004: Test('ProgramControlFlow.pas', [], True, True);
-      005: Test('ProgramTypes.pas', [], True, True);
-      006: Test('ProgramComplete.pas', [], True, True);
-      007: Test('UnitSimple.pas', [], True, True);
-      008: Test('ProgramUsesUnit.pas', ['UnitSimple.pas'], True, True);
-      009: Test('LibrarySimple.pas', [], True, True);
-      010: Test('ProgramCaseAndOperators.pas', [], True, True);
-      011: Test('ProgramConstantsAndRepeat.pas', [], True, True);
-      012: Test('ProgramStringsAndWith.pas', [], True, True);
-      013: Test('ProgramFunctions.pas', [], True, True);
-      014: Test('ProgramWriteWriteLn.pas', [], True, True);
-      015: Test('ProgramBasicTypes.pas', [], True, True);
-      016: Test('ProgramTypeAliases.pas', [], True, True);
-      017: Test('ProgramTypedConstants.pas', [], True, True);
-      018: Test('ProgramAllOperators.pas', [], True, True);
-      019: Test('ProgramParameterPassing.pas', [], True, True);
-      020: Test('ProgramMultiDimArrays.pas', [], True, True);
-      021: Test('ProgramNestedRecords.pas', [], True, True);
-      022: Test('ProgramEnumerations.pas', [], True, True);
-      023: Test('ProgramPointerOperations.pas', [], True, True);
-      024: Test('ProgramStringOperations.pas', [], True, True);
-      025: Test('ProgramCompilerDirectives.pas', [], True, True);
-      026: Test('ProgramUsesUnitTypes.pas', ['UnitWithTypes.pas'], True, True);
-      027: Test('LibraryWithExports.pas', [], True, True);
-    end;
+    // Register all tests with their specific options
+    // Format: AddTest(Number, SourceFile, [AdditionalFiles], Build, Run, Clean)
 
-  except
-    on E: Exception do
-    begin
-      TNPUtils.PrintLn('Fatal Error: %s', [E.Message]);
-    end;
+    // 0.2.0 Tests
+    LTestSuite.AddTest(001, 'ProgramSimple.pas', [], True, True);
+    LTestSuite.AddTest(002, 'ProgramVariables.pas', [], True, True);
+    LTestSuite.AddTest(003, 'ProgramFunctions.pas', [], True, True);
+    LTestSuite.AddTest(004, 'ProgramControlFlow.pas', [], True, True);
+    LTestSuite.AddTest(005, 'ProgramTypes.pas', [], True, True);
+    LTestSuite.AddTest(006, 'ProgramComplete.pas', [], True, True);
+    LTestSuite.AddTest(007, 'UnitSimple.pas', [], True, True);
+    LTestSuite.AddTest(008, 'ProgramUsesUnit.pas', ['UnitSimple.pas'], True, True);
+    LTestSuite.AddTest(009, 'LibrarySimple.pas', [], True, True);
+    LTestSuite.AddTest(010, 'ProgramCaseAndOperators.pas', [], True, True);
+    LTestSuite.AddTest(011, 'ProgramConstantsAndRepeat.pas', [], True, True);
+    LTestSuite.AddTest(012, 'ProgramStringsAndWith.pas', [], True, True);
+    LTestSuite.AddTest(013, 'ProgramFunctions.pas', [], True, True);
+    LTestSuite.AddTest(014, 'ProgramWriteWriteLn.pas', [], True, True);
+    LTestSuite.AddTest(015, 'ProgramBasicTypes.pas', [], True, True);
+    LTestSuite.AddTest(016, 'ProgramTypeAliases.pas', [], True, True);
+    LTestSuite.AddTest(017, 'ProgramTypedConstants.pas', [], True, True);
+    LTestSuite.AddTest(018, 'ProgramAllOperators.pas', [], True, True);
+    LTestSuite.AddTest(019, 'ProgramParameterPassing.pas', [], True, True);
+    LTestSuite.AddTest(020, 'ProgramMultiDimArrays.pas', [], True, True);
+    LTestSuite.AddTest(021, 'ProgramNestedRecords.pas', [], True, True);
+    LTestSuite.AddTest(022, 'ProgramEnumerations.pas', [], True, True);
+    LTestSuite.AddTest(023, 'ProgramPointerOperations.pas', [], True, True);
+    LTestSuite.AddTest(024, 'ProgramStringOperations.pas', [], True, True);
+    LTestSuite.AddTest(025, 'ProgramCompilerDirectives.pas', [], True, True);
+    LTestSuite.AddTest(026, 'ProgramUsesUnitTypes.pas', ['UnitWithTypes.pas'], True, True);
+    LTestSuite.AddTest(027, 'LibraryWithExports.pas', [], True, True);
 
+    // 0.3.0 Tests
+    LTestSuite.AddTest(028, 'ProgramMessageBox.pas', [], True, True);
+    LTestSuite.AddTest(029, 'DirectiveTest.pas', [], True, True);
+    LTestSuite.AddTest(030, 'ProgramArraySet.pas', [], True, True);
+    LTestSuite.AddTest(031, 'ProgramBreakContinueExit.pas', [], True, True);
+    LTestSuite.AddTest(032, 'ProgramRuntimeIntrinsics.pas', [], True, True);
+    LTestSuite.AddTest(033, 'ProgramMathFunctions.pas', [], True, True);
+    LTestSuite.AddTest(034, 'ProgramSizeOf.pas', [], True, True);
+    LTestSuite.AddTest(035, 'ProgramFormat.pas', [], True, True);
+    LTestSuite.AddTest(036, 'ProgramFileIO.pas', [], True, True);
+    LTestSuite.AddTest(037, 'ProgramBinaryFileIO.pas', [], True, True);
+    LTestSuite.AddTest(038, 'ProgramExceptions.pas', [], True, True);
+    LTestSuite.AddTest(039, 'ProgramCommandLine.pas', [], True, True);
+    LTestSuite.AddTest(040, 'ProgramForwardDeclarations.pas', [], True, True);
+    LTestSuite.AddTest(041, 'ProgramStringFunctions.pas', [], True, True);
+    LTestSuite.AddTest(042, 'ProgramArrayCopy.pas', [], True, True);
+    LTestSuite.AddTest(043, 'LibraryForward.pas', [], True, True);
+
+    // Run the test suite based on command line
+    LTestSuite.Run();
+
+  finally
+    LTestSuite.Free();
   end;
 
-  TNPUtils.Pause();
 end;
 
 end.

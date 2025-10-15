@@ -24,6 +24,19 @@ uses
   NitroPascal.Errors;
 
 type
+  { External Function Parameter Info }
+  TExternalParamInfo = record
+    Name: string;
+    CppType: string;  // The actual C++ type: 'const wchar_t*', 'const char*', etc.
+  end;
+  
+  { External Function Info }
+  TExternalFunctionInfo = record
+    Name: string;
+    CallingConvention: string;
+    Parameters: TArray<TExternalParamInfo>;
+  end;
+
   { TNPCodeGenerator }
   TNPCodeGenerator = class
   strict private
@@ -38,6 +51,12 @@ type
     FWithStack: TList<string>;
     FDotNestLevel: Integer;
     FVariableTypes: TDictionary<string, string>;  // Track variable name -> C++ type
+    FExternalLibraries: TStringList;
+    FExternalFunctions: TDictionary<string, TExternalFunctionInfo>;  // Track external functions
+    FLoopDepth: Integer;  // Track loop nesting for Break/Continue
+    FCurrentRoutineType: string;  // 'FUNCTION' or 'PROCEDURE' or empty
+    FCurrentReturnType: string;  // Return type for functions
+    FForwardDeclarations: TList<string>;  // Track forward declared function names
     
     procedure InitializeTypeMap;
     procedure InitializeSupportedNodes;
@@ -116,6 +135,30 @@ type
     
     // Helper to get variable type
     function GetVariableType(const AVariableName: string): string;
+    
+    // External library tracking
+    procedure AddExternalLibrary(const ALibrary: string);
+    function GetExternalLibraries: TArray<string>;
+    
+    // External function tracking
+    function IsExternalFunction(const AFuncName: string): Boolean;
+    function GetExternalFunctionInfo(const AFuncName: string): TExternalFunctionInfo;
+    procedure RegisterExternalFunction(const AFuncInfo: TExternalFunctionInfo);
+    
+    // Loop control tracking
+    procedure EnterLoop;
+    procedure ExitLoop;
+    function GetLoopDepth: Integer;
+    
+    // Routine context tracking (for Exit)
+    procedure SetRoutineContext(const ARoutineType: string; const AReturnType: string);
+    procedure ClearRoutineContext;
+    function GetRoutineType: string;
+    function GetReturnType: string;
+    
+    // Forward declaration tracking
+    function IsForwardDeclared(const AFuncName: string): Boolean;
+    procedure AddForwardDeclaration(const AFuncName: string);
   end;
 
   { TNPCodeGen }
@@ -123,16 +166,20 @@ type
   strict private
     FOutputFolder: string;
     FCleanOutputFolder: Boolean;
+    FGenerator: TNPCodeGenerator;  // Keep reference to access external libraries
   public
     constructor Create;
     destructor Destroy; override;
     
     function GenerateFromJSON(const AJSON: string; var AErrorManager: TNPErrorManager): Boolean;
     function GenerateFromFile(const AJSONFilename: string; var AErrorManager: TNPErrorManager): Boolean;
+    function GetExternalLibraries: TArray<string>;
     
     property OutputFolder: string read FOutputFolder write FOutputFolder;
     property CleanOutputFolder: Boolean read FCleanOutputFolder write FCleanOutputFolder;
   end;
+
+function GetRTLFunctionName(const AFuncName: string): string;
 
 implementation
 
@@ -141,6 +188,119 @@ uses
   NitroPascal.CodeGen.Statements,
   NitroPascal.CodeGen.Declarations,
   NitroPascal.CodeGen.Files;
+
+const
+  // Map of Delphi RTL function names (uppercase) to correct C++ RTL names
+  // CENTRALIZED: Used by both Expressions and Statements units
+  RTL_FUNCTION_MAP: array[0..77] of record Name: string; CppName: string; end = (
+    // I/O Functions
+    (Name: 'WRITELN'; CppName: 'WriteLn'),
+    (Name: 'WRITE'; CppName: 'Write'),
+    (Name: 'READLN'; CppName: 'ReadLn'),
+    // Memory Management
+    (Name: 'NEW'; CppName: 'New'),
+    (Name: 'DISPOSE'; CppName: 'Dispose'),
+    (Name: 'GETMEM'; CppName: 'GetMem'),
+    (Name: 'FREEMEM'; CppName: 'FreeMem'),
+    (Name: 'REALLOCMEM'; CppName: 'ReallocMem'),
+    // Memory Operations
+    (Name: 'FILLCHAR'; CppName: 'FillChar'),
+    (Name: 'MOVE'; CppName: 'Move'),
+    // Array/String Functions
+    (Name: 'LENGTH'; CppName: 'Length'),
+    (Name: 'COPY'; CppName: 'Copy'),
+    (Name: 'POS'; CppName: 'Pos'),
+    (Name: 'SETLENGTH'; CppName: 'SetLength'),
+    (Name: 'HIGH'; CppName: 'High'),
+    (Name: 'LOW'; CppName: 'Low'),
+    // String Manipulation
+    (Name: 'INSERT'; CppName: 'Insert'),
+    (Name: 'DELETE'; CppName: 'Delete'),
+    (Name: 'TRIM'; CppName: 'Trim'),
+    (Name: 'TRIMLEFT'; CppName: 'TrimLeft'),
+    (Name: 'TRIMRIGHT'; CppName: 'TrimRight'),
+    // String Conversion
+    (Name: 'INTTOSTR'; CppName: 'IntToStr'),
+    (Name: 'STRTOINT'; CppName: 'StrToInt'),
+    (Name: 'STRTOINTDEF'; CppName: 'StrToIntDef'),
+    (Name: 'FLOATTOSTR'; CppName: 'FloatToStr'),
+    (Name: 'STRTOFLOAT'; CppName: 'StrToFloat'),
+    (Name: 'UPPERCASE'; CppName: 'UpperCase'),
+    (Name: 'LOWERCASE'; CppName: 'LowerCase'),
+    (Name: 'BOOLTOSTR'; CppName: 'BoolToStr'),
+    (Name: 'FORMAT'; CppName: 'Format'),
+    // Ordinal Functions
+    (Name: 'ORD'; CppName: 'Ord'),
+    (Name: 'CHR'; CppName: 'Chr'),
+    (Name: 'SUCC'; CppName: 'Succ'),
+    (Name: 'PRED'; CppName: 'Pred'),
+    (Name: 'INC'; CppName: 'Inc'),
+    (Name: 'DEC'; CppName: 'Dec'),
+    // Type Information
+    (Name: 'ASSIGNED'; CppName: 'Assigned'),
+    // Set Operations
+    (Name: 'INCLUDE'; CppName: 'Include'),
+    (Name: 'EXCLUDE'; CppName: 'Exclude'),
+    // Program Control
+    (Name: 'HALT'; CppName: 'Halt'),
+    // Math Functions
+    (Name: 'ABS'; CppName: 'Abs'),
+    (Name: 'SQR'; CppName: 'Sqr'),
+    (Name: 'SQRT'; CppName: 'Sqrt'),
+    (Name: 'SIN'; CppName: 'Sin'),
+    (Name: 'COS'; CppName: 'Cos'),
+    (Name: 'TAN'; CppName: 'Tan'),
+    (Name: 'ARCTAN'; CppName: 'ArcTan'),
+    (Name: 'ARCSIN'; CppName: 'ArcSin'),
+    (Name: 'ARCCOS'; CppName: 'ArcCos'),
+    (Name: 'ROUND'; CppName: 'Round'),
+    (Name: 'TRUNC'; CppName: 'Trunc'),
+    (Name: 'CEIL'; CppName: 'Ceil'),
+    (Name: 'FLOOR'; CppName: 'Floor'),
+    (Name: 'MAX'; CppName: 'Max'),
+    (Name: 'MIN'; CppName: 'Min'),
+    (Name: 'RANDOMIZE'; CppName: 'Randomize'),
+    (Name: 'RANDOM'; CppName: 'Random'),
+    // File I/O
+    (Name: 'ASSIGNFILE'; CppName: 'AssignFile'),
+    (Name: 'RESET'; CppName: 'Reset'),
+    (Name: 'REWRITE'; CppName: 'Rewrite'),
+    (Name: 'APPEND'; CppName: 'Append'),
+    (Name: 'CLOSEFILE'; CppName: 'CloseFile'),
+    (Name: 'EOF'; CppName: 'Eof'),
+    (Name: 'FILEEXISTS'; CppName: 'FileExists'),
+    (Name: 'DELETEFILE'; CppName: 'DeleteFile'),
+    (Name: 'RENAMEFILE'; CppName: 'RenameFile'),
+    (Name: 'DIRECTORYEXISTS'; CppName: 'DirectoryExists'),
+    (Name: 'CREATEDIR'; CppName: 'CreateDir'),
+    (Name: 'GETCURRENTDIR'; CppName: 'GetCurrentDir'),
+    // Exception Handling
+    (Name: 'RAISEEXCEPTION'; CppName: 'RaiseException'),
+    (Name: 'GETEXCEPTIONMESSAGE'; CppName: 'GetExceptionMessage'),
+    // Command Line Parameters
+    (Name: 'PARAMCOUNT'; CppName: 'ParamCount'),
+    (Name: 'PARAMSTR'; CppName: 'ParamStr'),
+    // Binary File I/O
+    (Name: 'BLOCKREAD'; CppName: 'BlockRead'),
+    (Name: 'BLOCKWRITE'; CppName: 'BlockWrite'),
+    (Name: 'FILESIZE'; CppName: 'FileSize'),
+    (Name: 'FILEPOS'; CppName: 'FilePos'),
+    (Name: 'SEEK'; CppName: 'Seek')
+  );
+
+function GetRTLFunctionName(const AFuncName: string): string;
+var
+  LI: Integer;
+  LUpper: string;
+begin
+  LUpper := UpperCase(AFuncName);
+  for LI := Low(RTL_FUNCTION_MAP) to High(RTL_FUNCTION_MAP) do
+  begin
+    if RTL_FUNCTION_MAP[LI].Name = LUpper then
+      Exit(RTL_FUNCTION_MAP[LI].CppName);
+  end;
+  Result := '';  // Not an RTL function
+end;
 
 { TNPCodeGenerator }
 
@@ -158,12 +318,23 @@ begin
   FWithStack := TList<string>.Create;
   FDotNestLevel := 0;
   FVariableTypes := TDictionary<string, string>.Create;
+  FExternalLibraries := TStringList.Create;
+  FExternalLibraries.Duplicates := dupIgnore;  // Prevent duplicates
+  FExternalLibraries.Sorted := True;  // Keep sorted
+  FExternalFunctions := TDictionary<string, TExternalFunctionInfo>.Create;
+  FLoopDepth := 0;
+  FCurrentRoutineType := '';
+  FCurrentReturnType := '';
+  FForwardDeclarations := TList<string>.Create;
   InitializeTypeMap;
   InitializeSupportedNodes;
 end;
 
 destructor TNPCodeGenerator.Destroy;
 begin
+  FForwardDeclarations.Free;
+  FExternalFunctions.Free;
+  FExternalLibraries.Free;
   FVariableTypes.Free;
   FWithStack.Free;
   FOutput.Free;
@@ -208,8 +379,15 @@ begin
   
   // Pointer types → np:: runtime types
   FTypeMap.Add('Pointer', 'np::Pointer');
-  FTypeMap.Add('PChar', 'char*');
-  FTypeMap.Add('PWideChar', 'char16_t*');
+  FTypeMap.Add('PChar', 'wchar_t*');        // Modern Delphi: PChar = PWideChar (UTF-16)
+  FTypeMap.Add('PWideChar', 'wchar_t*');    // Explicit wide char pointer
+  FTypeMap.Add('PAnsiChar', 'char*');       // Explicit ANSI char pointer
+  
+  // File types
+  FTypeMap.Add('Text', 'np::Text');
+  FTypeMap.Add('TextFile', 'np::TextFile');
+  FTypeMap.Add('File', 'np::BinaryFile');
+  FTypeMap.Add('BinaryFile', 'np::BinaryFile');
   
   // Special types
   FTypeMap.Add('Variant', 'std::any');
@@ -284,6 +462,13 @@ begin
   FSupportedNodes.Add('EXPORTS');
   FSupportedNodes.Add('ELEMENT');
   FSupportedNodes.Add('INDEXED');
+  FSupportedNodes.Add('EXTERNAL');
+  FSupportedNodes.Add('IN');
+  FSupportedNodes.Add('BREAK');
+  FSupportedNodes.Add('CONTINUE');
+  FSupportedNodes.Add('EXIT');
+  FSupportedNodes.Add('DOWNTO');
+  FSupportedNodes.Add('SIZEOF');
   
   // Node types that are intentionally allowed but not processed
   FSupportedNodes.Add('UNIT');
@@ -727,10 +912,13 @@ begin
   inherited;
   FOutputFolder := '';
   FCleanOutputFolder := False;
+  FGenerator := nil;
 end;
 
 destructor TNPCodeGen.Destroy;
 begin
+  if FGenerator <> nil then
+    FGenerator.Free;
   inherited;
 end;
 
@@ -746,11 +934,23 @@ begin
     Exit;
   end;
   
+  // Free previous generator if exists
+  if FGenerator <> nil then
+  begin
+    FGenerator.Free;
+    FGenerator := nil;
+  end;
+  
   LGenerator := TNPCodeGenerator.Create(FOutputFolder, FCleanOutputFolder, AErrorManager);
   try
+    FGenerator := LGenerator;  // Keep reference
     Result := LGenerator.Generate(AJSON);
   finally
-    LGenerator.Free;
+    if not Result then
+    begin
+      LGenerator.Free;
+      FGenerator := nil;  // Clear reference on failure
+    end;
   end;
 end;
 
@@ -828,6 +1028,106 @@ function TNPCodeGenerator.GetVariableType(const AVariableName: string): string;
 begin
   if not FVariableTypes.TryGetValue(AVariableName, Result) then
     Result := '';  // Unknown type
+end;
+
+{ External Library Tracking }
+
+procedure TNPCodeGenerator.AddExternalLibrary(const ALibrary: string);
+begin
+  if (ALibrary <> '') and (not FExternalLibraries.Contains(ALibrary)) then
+    FExternalLibraries.Add(ALibrary);
+end;
+
+function TNPCodeGenerator.GetExternalLibraries: TArray<string>;
+begin
+  Result := FExternalLibraries.ToStringArray;
+end;
+
+function TNPCodeGen.GetExternalLibraries: TArray<string>;
+begin
+  if FGenerator <> nil then
+    Result := FGenerator.GetExternalLibraries
+  else
+    Result := [];
+end;
+
+{ External Function Tracking }
+
+function TNPCodeGenerator.IsExternalFunction(const AFuncName: string): Boolean;
+begin
+  Result := FExternalFunctions.ContainsKey(AFuncName);
+end;
+
+function TNPCodeGenerator.GetExternalFunctionInfo(const AFuncName: string): TExternalFunctionInfo;
+begin
+  if not FExternalFunctions.TryGetValue(AFuncName, Result) then
+  begin
+    // Return empty record if not found
+    Result.Name := '';
+    Result.CallingConvention := '';
+    SetLength(Result.Parameters, 0);
+  end;
+end;
+
+procedure TNPCodeGenerator.RegisterExternalFunction(const AFuncInfo: TExternalFunctionInfo);
+begin
+  // Store external function info (overwrites if exists)
+  FExternalFunctions.AddOrSetValue(AFuncInfo.Name, AFuncInfo);
+end;
+
+{ Loop Control Tracking }
+
+procedure TNPCodeGenerator.EnterLoop;
+begin
+  Inc(FLoopDepth);
+end;
+
+procedure TNPCodeGenerator.ExitLoop;
+begin
+  if FLoopDepth > 0 then
+    Dec(FLoopDepth);
+end;
+
+function TNPCodeGenerator.GetLoopDepth: Integer;
+begin
+  Result := FLoopDepth;
+end;
+
+{ Routine Context Tracking }
+
+procedure TNPCodeGenerator.SetRoutineContext(const ARoutineType: string; const AReturnType: string);
+begin
+  FCurrentRoutineType := ARoutineType;
+  FCurrentReturnType := AReturnType;
+end;
+
+procedure TNPCodeGenerator.ClearRoutineContext;
+begin
+  FCurrentRoutineType := '';
+  FCurrentReturnType := '';
+end;
+
+function TNPCodeGenerator.GetRoutineType: string;
+begin
+  Result := FCurrentRoutineType;
+end;
+
+function TNPCodeGenerator.GetReturnType: string;
+begin
+  Result := FCurrentReturnType;
+end;
+
+{ Forward Declaration Tracking }
+
+function TNPCodeGenerator.IsForwardDeclared(const AFuncName: string): Boolean;
+begin
+  Result := FForwardDeclarations.Contains(AFuncName);
+end;
+
+procedure TNPCodeGenerator.AddForwardDeclaration(const AFuncName: string);
+begin
+  if not FForwardDeclarations.Contains(AFuncName) then
+    FForwardDeclarations.Add(AFuncName);
 end;
 
 end.

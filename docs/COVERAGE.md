@@ -2,6 +2,13 @@
 
 This document tracks all language features planned for NitroPascal. Each feature is marked as implemented [x] or planned [ ]. This serves as the master TODO list for the project.
 
+**INSTRUCTIONS FOR UPDATES:**
+- ONLY add ticks [x] to mark features as implemented
+- Find the appropriate section for the feature and tick it there
+- If no appropriate section exists, create a new section with the proper feature list and tick items there
+- DO NOT add any other text, commentary, or explanations
+- Keep all content as tick lists only
+
 ## Basic Types
 - [x] Integer → int32_t
 - [x] Int64 → int64_t
@@ -109,7 +116,7 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [x] String concatenation (+)
 - [x] Pointer dereferencing (^)
 - [x] Address-of operator (@)
-- [ ] Set membership (in)
+- [x] Set membership (in)
 - [ ] Range operator (..)
 - [ ] Type cast operator (as)
 - [ ] Type check operator (is)
@@ -131,18 +138,18 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [x] repeat..until
 - [ ] for..in..do (arrays)
 - [ ] for..in..do (collections)
-- [ ] break
-- [ ] continue
-- [ ] exit
-- [ ] exit with return value
+- [x] break
+- [x] continue
+- [x] exit
+- [x] exit with return value
 
 ## Control Flow - Structured
-- [ ] with statement
-- [ ] try..except
-- [ ] try..finally
-- [ ] try..except..finally
-- [ ] raise statement
-- [ ] on E: Exception do
+- [x] with statement
+- [x] try..except
+- [x] try..finally
+- [x] try..except..finally
+- [x] raise statement
+- [x] on E: Exception do
 - [ ] else in except blocks
 
 ## Functions & Procedures
@@ -154,13 +161,13 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [x] Parameter passing - var
 - [x] Parameter passing - out
 - [x] Local variables
+- [x] External declarations (external 'library.dll')
 - [ ] Default parameter values
 - [ ] Named parameters
 - [ ] Parameter arrays (array of const)
 - [ ] Open array parameters
 - [ ] Function overloading
-- [ ] Forward declarations
-- [ ] External declarations
+- [x] Forward declarations
 - [ ] Inline functions
 - [ ] Nested functions
 - [ ] Anonymous functions
@@ -181,23 +188,23 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [ ] Array slicing
 
 ## Arrays - Dynamic
-- [ ] Dynamic array declarations (array of T)
-- [ ] SetLength for dynamic arrays
-- [ ] Length for dynamic arrays
-- [ ] Copy for dynamic arrays
+- [x] Dynamic array declarations (array of T)
+- [x] SetLength for dynamic arrays
+- [x] Length for dynamic arrays
+- [x] Copy for dynamic arrays
 - [ ] Dynamic array assignment
 - [ ] Dynamic array initialization
 - [ ] Multi-dimensional dynamic arrays
 - [ ] Array concatenation
 - [ ] Low function for dynamic arrays
-- [ ] High function for dynamic arrays
+- [x] High function for dynamic arrays
 
 ## Arrays - Built-in Functions
-- [ ] Length(array)
-- [ ] Low(array)
-- [ ] High(array)
-- [ ] SetLength(array, length)
-- [ ] Copy(array, start, count)
+- [x] Length(array)
+- [x] Low(array)
+- [x] High(array)
+- [x] SetLength(array, length)
+- [x] Copy(array, start, count)
 
 ## Records
 - [x] Record type declarations
@@ -229,18 +236,18 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [ ] Pred function for enums
 
 ## Sets
-- [ ] Set type declarations (set of)
+- [x] Set type declarations (set of)
 - [ ] Set literals
 - [ ] Set operations (union +)
 - [ ] Set operations (difference -)
 - [ ] Set operations (intersection *)
 - [ ] Set operations (symmetric difference ><)
-- [ ] Set membership (in)
+- [x] Set membership (in)
 - [ ] Set comparison (=, <>)
 - [ ] Set subset (<=)
 - [ ] Set superset (>=)
-- [ ] Include procedure
-- [ ] Exclude procedure
+- [x] Include procedure
+- [x] Exclude procedure
 
 ## Pointers
 - [x] Pointer type declarations (^T)
@@ -253,9 +260,9 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [ ] Pointer arithmetic
 - [ ] PChar type
 - [ ] Pointer comparison
-- [ ] GetMem function
-- [ ] FreeMem procedure
-- [ ] ReallocMem function
+- [x] GetMem function
+- [x] FreeMem procedure
+- [x] ReallocMem function
 - [ ] AllocMem function
 
 ## Classes
@@ -325,92 +332,92 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [x] Length(S)
 - [x] String concatenation (+)
 - [x] String indexing (S[i], 1-based)
-- [ ] Copy(S, Index, Count)
-- [ ] Pos(Substr, S)
-- [ ] Delete(S, Index, Count)
-- [ ] Insert(Substr, S, Index)
-- [ ] IntToStr(I)
-- [ ] StrToInt(S)
-- [ ] StrToIntDef(S, Default)
-- [ ] FloatToStr(F)
-- [ ] StrToFloat(S)
-- [ ] Format(Fmt, Args)
-- [ ] UpperCase(S)
-- [ ] LowerCase(S)
-- [ ] Trim(S)
-- [ ] TrimLeft(S)
-- [ ] TrimRight(S)
-- [ ] StringReplace(S, Old, New, Flags)
-- [ ] CompareStr(S1, S2)
+- [x] Copy(S, Index, Count)
+- [x] Pos(Substr, S)
+- [x] Delete(S, Index, Count)
+- [x] Insert(Substr, S, Index)
+- [x] IntToStr(I)
+- [x] StrToInt(S)
+- [x] StrToIntDef(S, Default)
+- [x] FloatToStr(F)
+- [x] StrToFloat(S)
+- [x] Format(Fmt, Args)
+- [x] UpperCase(S)
+- [x] LowerCase(S)
+- [x] Trim(S)
+- [x] TrimLeft(S)
+- [x] TrimRight(S)
+- [x] StringReplace(S, Old, New, Flags)
+- [x] CompareStr(S1, S2)
 - [ ] CompareText(S1, S2)
 - [ ] SameStr(S1, S2)
-- [ ] SameText(S1, S2)
+- [x] SameText(S1, S2)
 - [ ] AnsiUpperCase(S)
 - [ ] AnsiLowerCase(S)
 - [ ] AnsiCompareStr(S1, S2)
 - [ ] AnsiCompareText(S1, S2)
-- [ ] QuotedStr(S)
+- [x] QuotedStr(S)
 - [ ] AnsiQuotedStr(S, Quote)
 - [ ] StringOfChar(Ch, Count)
 - [ ] WrapText(S, MaxCol)
 
 ## Math Functions
-- [ ] Abs(X)
-- [ ] Sqr(X)
-- [ ] Sqrt(X)
-- [ ] Sin(X)
-- [ ] Cos(X)
-- [ ] Tan(X)
-- [ ] ArcSin(X)
-- [ ] ArcCos(X)
-- [ ] ArcTan(X)
+- [x] Abs(X)
+- [x] Sqr(X)
+- [x] Sqrt(X)
+- [x] Sin(X)
+- [x] Cos(X)
+- [x] Tan(X)
+- [x] ArcSin(X)
+- [x] ArcCos(X)
+- [x] ArcTan(X)
 - [ ] Ln(X)
 - [ ] Exp(X)
 - [ ] Power(Base, Exponent)
-- [ ] Round(X)
-- [ ] Trunc(X)
+- [x] Round(X)
+- [x] Trunc(X)
 - [ ] Int(X)
 - [ ] Frac(X)
-- [ ] Ceil(X)
-- [ ] Floor(X)
+- [x] Ceil(X)
+- [x] Floor(X)
 - [ ] Pi constant
-- [ ] Max(A, B)
-- [ ] Min(A, B)
-- [ ] Random
-- [ ] Randomize
+- [x] Max(A, B)
+- [x] Min(A, B)
+- [x] Random
+- [x] Randomize
 - [ ] RandomRange(Min, Max)
 
 ## Type Conversion Functions
-- [ ] IntToStr(I)
-- [ ] StrToInt(S)
-- [ ] StrToIntDef(S, Default)
-- [ ] FloatToStr(F)
-- [ ] StrToFloat(S)
-- [ ] BoolToStr(B)
+- [x] IntToStr(I)
+- [x] StrToInt(S)
+- [x] StrToIntDef(S, Default)
+- [x] FloatToStr(F)
+- [x] StrToFloat(S)
+- [x] BoolToStr(B)
 - [ ] StrToBool(S)
-- [ ] Chr(I)
-- [ ] Ord(Ch)
+- [x] Chr(I)
+- [x] Ord(Ch)
 
 ## Ordinal Functions
-- [ ] Ord(X)
-- [ ] Succ(X)
-- [ ] Pred(X)
-- [ ] Inc(X)
-- [ ] Inc(X, N)
-- [ ] Dec(X)
-- [ ] Dec(X, N)
-- [ ] Low(X)
-- [ ] High(X)
+- [x] Ord(X)
+- [x] Succ(X)
+- [x] Pred(X)
+- [x] Inc(X)
+- [x] Inc(X, N)
+- [x] Dec(X)
+- [x] Dec(X, N)
+- [x] Low(X)
+- [x] High(X)
 
 ## Memory Functions
 - [x] New(P)
 - [x] Dispose(P)
-- [ ] GetMem(P, Size)
-- [ ] FreeMem(P)
-- [ ] ReallocMem(P, Size)
+- [x] GetMem(P, Size)
+- [x] FreeMem(P)
+- [x] ReallocMem(P, Size)
 - [ ] AllocMem(Size)
-- [ ] FillChar(Dest, Count, Value)
-- [ ] Move(Source, Dest, Count)
+- [x] FillChar(Dest, Count, Value)
+- [x] Move(Source, Dest, Count)
 - [ ] FillByte(Dest, Count, Value)
 - [ ] MoveChars(Source, Dest, Count)
 
@@ -420,7 +427,7 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [ ] Write (formatted)
 - [ ] WriteLn (formatted)
 - [ ] Read(Var)
-- [ ] ReadLn(Var)
+- [x] ReadLn(Var)
 - [ ] Eof
 - [ ] Eoln
 - [ ] ClrScr
@@ -431,35 +438,35 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [ ] TextBackground(Color)
 
 ## I/O Functions - Files
-- [ ] Assign(F, Name)
-- [ ] Reset(F)
-- [ ] Rewrite(F)
-- [ ] Append(F)
-- [ ] Close(F)
+- [x] Assign(F, Name)
+- [x] Reset(F)
+- [x] Rewrite(F)
+- [x] Append(F)
+- [x] Close(F)
 - [ ] Read(F, Var)
-- [ ] ReadLn(F, Var)
-- [ ] Write(F, Data)
-- [ ] WriteLn(F, Data)
-- [ ] BlockRead(F, Buf, Count)
-- [ ] BlockWrite(F, Buf, Count)
-- [ ] Seek(F, Position)
-- [ ] FilePos(F)
-- [ ] FileSize(F)
-- [ ] Eof(F)
+- [x] ReadLn(F, Var)
+- [x] Write(F, Data)
+- [x] WriteLn(F, Data)
+- [x] BlockRead(F, Buf, Count)
+- [x] BlockWrite(F, Buf, Count)
+- [x] Seek(F, Position)
+- [x] FilePos(F)
+- [x] FileSize(F)
+- [x] Eof(F)
 - [ ] Eoln(F)
 - [ ] Erase(F)
 - [ ] Rename(F, NewName)
 - [ ] IOResult
 
 ## File Management
-- [ ] FileExists(FileName)
-- [ ] DirectoryExists(DirName)
-- [ ] CreateDir(DirName)
+- [x] FileExists(FileName)
+- [x] DirectoryExists(DirName)
+- [x] CreateDir(DirName)
 - [ ] RemoveDir(DirName)
-- [ ] GetCurrentDir
+- [x] GetCurrentDir
 - [ ] SetCurrentDir(DirName)
-- [ ] DeleteFile(FileName)
-- [ ] RenameFile(OldName, NewName)
+- [x] DeleteFile(FileName)
+- [x] RenameFile(OldName, NewName)
 - [ ] ChangeFileExt(FileName, Extension)
 - [ ] ExtractFilePath(FileName)
 - [ ] ExtractFileName(FileName)
@@ -499,14 +506,15 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [x] {$library_path path}
 - [x] {$link library}
 - [x] {$module_path path}
+- [x] {$apptype console|gui}
 - [ ] {$define symbol}
 - [ ] {$undef symbol}
-- [ ] {$ifdef symbol}
+- [x] {$ifdef symbol}
 - [ ] {$ifndef symbol}
 - [ ] {$if expression}
-- [ ] {$else}
+- [x] {$else}
 - [ ] {$elseif expression}
-- [ ] {$endif}
+- [x] {$endif}
 - [ ] {$ifopt switch}
 
 ## Compiler Directives - Code Control
@@ -545,16 +553,16 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [x] Library declarations
 - [x] Package declarations
 - [ ] Uses clause in program
-- [ ] Program parameters (ParamCount, ParamStr)
+- [x] Program parameters (ParamCount, ParamStr)
 
 ## Exception Handling
 - [ ] Exception class hierarchy
-- [ ] try..except blocks
-- [ ] try..finally blocks
-- [ ] try..except..finally blocks
-- [ ] raise statement
+- [x] try..except blocks
+- [x] try..finally blocks
+- [x] try..except..finally blocks
+- [x] raise statement
 - [ ] raise with at
-- [ ] on E: Exception do
+- [x] on E: Exception do
 - [ ] else in except
 - [ ] Exception.Message
 - [ ] Exception.ClassName
@@ -710,12 +718,12 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [ ] GetActiveOleObject function
 
 ## Platform Services
-- [ ] ParamCount function
-- [ ] ParamStr function
+- [x] ParamCount function
+- [x] ParamStr function
 - [ ] GetEnvironmentVariable function
 - [ ] SetEnvironmentVariable procedure
 - [ ] ExitCode variable
-- [ ] Halt procedure
+- [x] Halt procedure
 - [ ] RunError procedure
 - [ ] GetTickCount function
 - [ ] Sleep procedure
@@ -740,6 +748,11 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [x] Zig build system integration
 - [x] Cross-platform compilation
 - [x] Build optimization modes (Debug, ReleaseSafe, ReleaseFast, ReleaseSmall)
+- [x] Conditional compilation support (DEBUG/RELEASE defines)
+- [x] Platform defines (WIN32/WIN64/LINUX/MACOS/MSWINDOWS/POSIX)
+- [x] Architecture defines (CPUX64/CPU386/CPUARM64)
+- [x] Application type defines (CONSOLE_APP/GUI_APP)
+- [x] Windows subsystem control (console vs GUI)
 - [ ] Incremental compilation
 - [ ] Precompiled headers
 - [ ] Package management
@@ -760,58 +773,58 @@ This document tracks all language features planned for NitroPascal. Each feature
 ## Standard Library - System
 - [x] WriteLn
 - [x] Write
-- [ ] ReadLn
+- [x] ReadLn
 - [ ] Read
-- [ ] Length
-- [ ] SetLength
-- [ ] Copy
-- [ ] Delete
-- [ ] Insert
-- [ ] Pos
-- [ ] New
-- [ ] Dispose
-- [ ] GetMem
-- [ ] FreeMem
-- [ ] Inc
-- [ ] Dec
-- [ ] Succ
-- [ ] Pred
-- [ ] Ord
-- [ ] Chr
-- [ ] Low
-- [ ] High
-- [ ] SizeOf
+- [x] Length
+- [x] SetLength
+- [x] Copy
+- [x] Delete
+- [x] Insert
+- [x] Pos
+- [x] New
+- [x] Dispose
+- [x] GetMem
+- [x] FreeMem
+- [x] Inc
+- [x] Dec
+- [x] Succ
+- [x] Pred
+- [x] Ord
+- [x] Chr
+- [x] Low
+- [x] High
+- [x] SizeOf
 - [ ] TypeOf
-- [ ] Assigned
+- [x] Assigned
 - [ ] Default
 - [ ] Initialize
 - [ ] Finalize
 
 ## Standard Library - System.SysUtils
-- [ ] IntToStr
-- [ ] StrToInt
-- [ ] StrToIntDef
-- [ ] FloatToStr
-- [ ] StrToFloat
-- [ ] Format
+- [x] IntToStr
+- [x] StrToInt
+- [x] StrToIntDef
+- [x] FloatToStr
+- [x] StrToFloat
+- [x] Format
 - [ ] FormatFloat
 - [ ] FormatDateTime
-- [ ] UpperCase
-- [ ] LowerCase
-- [ ] Trim
-- [ ] TrimLeft
-- [ ] TrimRight
-- [ ] StringReplace
-- [ ] QuotedStr
+- [x] UpperCase
+- [x] LowerCase
+- [x] Trim
+- [x] TrimLeft
+- [x] TrimRight
+- [x] StringReplace
+- [x] QuotedStr
 - [ ] ExtractFilePath
 - [ ] ExtractFileName
 - [ ] ExtractFileExt
 - [ ] ChangeFileExt
-- [ ] FileExists
-- [ ] DirectoryExists
-- [ ] DeleteFile
-- [ ] RenameFile
-- [ ] CreateDir
+- [x] FileExists
+- [x] DirectoryExists
+- [x] DeleteFile
+- [x] RenameFile
+- [x] CreateDir
 - [ ] RemoveDir
 - [ ] Now
 - [ ] Date
@@ -822,29 +835,29 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [ ] DecodeTime
 
 ## Standard Library - System.Math
-- [ ] Abs
-- [ ] Sqr
-- [ ] Sqrt
-- [ ] Sin
-- [ ] Cos
-- [ ] Tan
-- [ ] ArcSin
-- [ ] ArcCos
-- [ ] ArcTan
+- [x] Abs
+- [x] Sqr
+- [x] Sqrt
+- [x] Sin
+- [x] Cos
+- [x] Tan
+- [x] ArcSin
+- [x] ArcCos
+- [x] ArcTan
 - [ ] ArcTan2
 - [ ] Ln
 - [ ] Exp
 - [ ] Power
 - [ ] IntPower
-- [ ] Round
+- [x] Round
 - [ ] RoundTo
-- [ ] Trunc
+- [x] Trunc
 - [ ] Int
 - [ ] Frac
-- [ ] Ceil
-- [ ] Floor
-- [ ] Max
-- [ ] Min
+- [x] Ceil
+- [x] Floor
+- [x] Max
+- [x] Min
 - [ ] MaxValue
 - [ ] MinValue
 - [ ] MaxIntValue
@@ -859,13 +872,19 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [ ] IsZero
 
 ## C/C++ Interoperability
-- [ ] External function declarations
+- [x] External function declarations (external 'library.dll')
+- [x] External library tracking for linking
+- [x] Calling conventions (stdcall, cdecl, fastcall)
+- [x] Automatic string type conversion for external functions
+- [x] PChar/PWideChar → const wchar_t* mapping
+- [x] PAnsiChar → const char* mapping
+- [x] Call-site string conversion (.c_str_wide(), .to_ansi())
+- [x] Pascal type → C type mapping for external declarations
+- [x] No declaration generation for external functions (linker resolves)
 - [ ] External variable declarations
-- [ ] Calling conventions (cdecl, stdcall, etc.)
 - [ ] C header file import
 - [ ] C++ class wrapping
 - [ ] C++ template wrapping
-- [ ] C string (PChar) handling
 - [ ] C array handling
 - [ ] Structure alignment
 - [ ] Packed structures
@@ -895,18 +914,18 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [x] Control flow helpers (ForLoop, WhileLoop, RepeatUntil)
 - [x] Basic operators (Div, Mod, Shl, Shr)
 - [x] String class (np::String)
-- [ ] Dynamic arrays (np::DynArray<T>)
-- [ ] Sets (np::Set<T>)
-- [ ] Exception handling
-- [ ] Memory management
+- [x] Dynamic arrays (np::DynArray<T>)
+- [x] Sets (np::Set<T>)
+- [x] Exception handling
+- [x] Memory management
 - [ ] Thread support
 - [ ] RTTI support
 - [ ] Collection classes
-- [ ] File I/O
+- [x] File I/O
 - [ ] Date/Time support
-- [ ] Math functions
-- [ ] String functions
-- [ ] Type conversion functions
+- [x] Math functions
+- [x] String functions
+- [x] Type conversion functions
 
 ## Cross-Platform Support
 - [x] Windows (x64)
@@ -936,7 +955,7 @@ This document tracks all language features planned for NitroPascal. Each feature
 
 ## Testing & Quality
 - [ ] Unit testing framework
-- [ ] Test runner
+- [x] Test runner
 - [ ] Code coverage analysis
 - [ ] Memory leak detection
 - [ ] Static analysis

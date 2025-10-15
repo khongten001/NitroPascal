@@ -1,4 +1,4 @@
-{===============================================================================
+﻿{===============================================================================
   NitroPascal - Modern Pascal • C Performance
 
   Copyright © 2025-present tinyBigGAMES™ LLC
@@ -20,7 +20,8 @@ uses
   System.Classes,
   System.IOUtils,
   NitroPascal.Compiler,
-  NitroPascal.Errors;
+  NitroPascal.Errors,
+  NitroPascal.BuildSettings;
 
 type
   { TNPPreprocessor }
@@ -35,6 +36,7 @@ type
     function ParseOptimizationMode(const AValue: string): TNPOptimizeMode;
     function ParseBoolean(const AValue: string): Boolean;
     function DequoteValue(const AValue: string): string;
+    function IsConditionalDirective(const ADirective: string): Boolean;
     
   public
     constructor Create(const ACompiler: TNPCompiler);
@@ -70,6 +72,36 @@ begin
     Result := Copy(LTrimmed, 2, LLen - 2)
   else
     Result := LTrimmed;
+end;
+
+function TNPPreprocessor.IsConditionalDirective(const ADirective: string): Boolean;
+const
+  // Directives handled by DelphiAST during parsing - silently ignored by preprocessor
+  CONDITIONAL_DIRECTIVES: array[0..10] of string = (
+    'ifdef',     // {$IFDEF xxx}
+    'ifndef',    // {$IFNDEF xxx}
+    'if',        // {$IF condition}
+    'ifopt',     // {$IFOPT switch}
+    'else',      // {$ELSE}
+    'elseif',    // {$ELSEIF condition}
+    'endif',     // {$ENDIF}
+    'ifend',     // {$IFEND}
+    'define',    // {$DEFINE xxx}
+    'undef',     // {$UNDEF xxx}
+    'r'          // {$R *.res} - resource files
+  );
+var
+  LDirective: string;
+  LCheckDir: string;
+begin
+  Result := False;
+  LDirective := ADirective.Trim().ToLower();
+  
+  for LCheckDir in CONDITIONAL_DIRECTIVES do
+  begin
+    if LDirective = LCheckDir then
+      Exit(True);
+  end;
 end;
 
 function TNPPreprocessor.ParseOptimizationMode(const AValue: string): TNPOptimizeMode;
@@ -129,10 +161,24 @@ begin
       FCompiler.AddLinkLibrary(LVal.Trim())
     else if LDir = 'module_path' then
       FCompiler.AddModulePath(LVal.Trim())
+    else if LDir = 'apptype' then
+    begin
+      if LVal.ToLower() = 'console' then
+        FCompiler.SetAppType(atConsole)
+      else if LVal.ToLower() = 'gui' then
+        FCompiler.SetAppType(atGUI)
+      else
+        raise Exception.CreateFmt('Invalid APPTYPE value: %s (expected CONSOLE or GUI)', [LVal]);
+    end
     else
     begin
-      // Unknown directive - just warn, don't fail
-      FCompiler.PrintLn('Warning: Unknown compiler directive {$%s} at line %d', [ADirective, FLineNumber]);
+      // Check if it's a conditional directive (handled by DelphiAST)
+      if not IsConditionalDirective(ADirective) then
+      begin
+        // Unknown directive - warn only if not conditional
+        FCompiler.PrintLn('Warning: Unknown compiler directive {$%s} at line %d', [ADirective, FLineNumber]);
+      end;
+      // If it IS conditional, silently ignore (DelphiAST handles it)
     end;
   except
     on E: Exception do

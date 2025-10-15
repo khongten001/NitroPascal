@@ -33,6 +33,7 @@ procedure GenerateFunctionDeclaration(const ACodeGenerator: TNPCodeGenerator; co
 procedure GenerateFunctionImplementation(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject);
 procedure GenerateFunctionImplementationWithExport(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject; const AIsExported: Boolean);
 function  GenerateParameterList(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject): string;
+function  HasForwardDirective(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject): Boolean;
 
 implementation
 
@@ -47,6 +48,384 @@ function GenerateConstantValue(const ACodeGenerator: TNPCodeGenerator; const AVa
 function GenerateArrayConstant(const ACodeGenerator: TNPCodeGenerator; const AValueNode: TJSONObject): string; forward;
 function IsStructType(const ACodeGenerator: TNPCodeGenerator; const ATypeName: string; const ATypeSectionNode: TJSONObject): Boolean; forward;
 procedure GenerateSimpleTypeAlias(const ACodeGenerator: TNPCodeGenerator; const ATypeName: string; const ATypeNode: TJSONObject); forward;
+function GetCallingConvention(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject): string; forward;
+
+{------------------------------------------------------------------------------}
+{ Forward Declaration Support }
+{------------------------------------------------------------------------------}
+
+function HasForwardDirective(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject): Boolean;
+var
+  LDirective: string;
+  LChildren: TJSONArray;
+  LStatementsNode: TJSONObject;
+begin
+  // Check for 'forward' in directive attribute first
+  LDirective := ACodeGenerator.GetNodeAttribute(AMethodNode, 'directive');
+  if SameText(LDirective, 'forward') then
+  begin
+    Result := True;
+    Exit;
+  end;
+  
+  // Alternative: forward declarations have no STATEMENTS node (no body)
+  LChildren := ACodeGenerator.GetNodeChildren(AMethodNode);
+  if LChildren = nil then
+  begin
+    Result := False;
+    Exit;
+  end;
+  
+  LStatementsNode := ACodeGenerator.FindNodeByType(LChildren, 'STATEMENTS');
+  Result := LStatementsNode = nil;
+end;
+
+{------------------------------------------------------------------------------}
+{ External Function Support Helpers }
+{------------------------------------------------------------------------------}
+
+function MapToCType(const APasType: string): string;
+begin
+  // Map Pascal types to raw C types (not np:: types)
+  // These are used ONLY for external function declarations
+  // This ensures compatibility with any C library (Windows API, SDL3, etc.)
+  if SameText(APasType, 'Integer') then
+    Result := 'int'
+  else if SameText(APasType, 'Cardinal') then
+    Result := 'unsigned int'
+  else if SameText(APasType, 'Int64') then
+    Result := 'long long'
+  else if SameText(APasType, 'Byte') then
+    Result := 'unsigned char'
+  else if SameText(APasType, 'Word') then
+    Result := 'unsigned short'
+  else if SameText(APasType, 'Boolean') then
+    Result := 'bool'
+  else if SameText(APasType, 'Char') then
+    Result := 'wchar_t'
+  else if SameText(APasType, 'Double') then
+    Result := 'double'
+  else if SameText(APasType, 'Single') then
+    Result := 'float'
+  else if SameText(APasType, 'Pointer') then
+    Result := 'void*'
+  else if SameText(APasType, 'PChar') or SameText(APasType, 'PWideChar') then
+    Result := 'const wchar_t*'
+  else if SameText(APasType, 'PAnsiChar') then
+    Result := 'const char*'
+  else
+    Result := APasType;  // Unknown type, use as-is
+end;
+
+procedure RegisterExternalFunctionInfo(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject);
+var
+  LChildren: TJSONArray;
+  LI: Integer;
+  LMethodName: string;
+  LCallingConv: string;
+  LFuncInfo: TExternalFunctionInfo;
+  LParamInfo: TExternalParamInfo;
+  LParamList: TList<TExternalParamInfo>;
+  LParametersNode: TJSONObject;
+  LParamChildren: TJSONArray;
+  LParamNode: TJSONObject;
+  LNameNode: TJSONObject;
+  LTypeNode: TJSONObject;
+  LParamName: string;
+  LParamPasType: string;
+  LParamCppType: string;
+begin
+  LChildren := ACodeGenerator.GetNodeChildren(AMethodNode);
+  if LChildren = nil then
+    Exit;
+  
+  // Extract method information
+  LMethodName := ACodeGenerator.GetNodeAttribute(AMethodNode, 'name');
+  LCallingConv := GetCallingConvention(ACodeGenerator, AMethodNode);
+  
+  // Build external function info for registration
+  LFuncInfo.Name := LMethodName;
+  LFuncInfo.CallingConvention := LCallingConv;
+  LParamList := TList<TExternalParamInfo>.Create();
+  try
+    // Build parameter list with C type mapping
+    LParametersNode := ACodeGenerator.FindNodeByType(LChildren, 'PARAMETERS');
+    if LParametersNode <> nil then
+    begin
+      LParamChildren := ACodeGenerator.GetNodeChildren(LParametersNode);
+      if LParamChildren <> nil then
+      begin
+        for LI := 0 to LParamChildren.Count - 1 do
+        begin
+          LParamNode := LParamChildren.Items[LI] as TJSONObject;
+          if ACodeGenerator.GetNodeType(LParamNode) <> 'PARAMETER' then
+            Continue;
+          
+          // Get NAME and TYPE children
+          LNameNode := ACodeGenerator.FindNodeByType(ACodeGenerator.GetNodeChildren(LParamNode), 'NAME');
+          LTypeNode := ACodeGenerator.FindNodeByType(ACodeGenerator.GetNodeChildren(LParamNode), 'TYPE');
+          
+          if (LNameNode = nil) or (LTypeNode = nil) then
+            Continue;
+          
+          LParamName := ACodeGenerator.GetNodeAttribute(LNameNode, 'value');
+          LParamPasType := ACodeGenerator.GetNodeAttribute(LTypeNode, 'name');
+          
+          // Map to raw C types for external function parameters
+          LParamCppType := MapToCType(LParamPasType);
+          
+          // Store parameter info for registration
+          LParamInfo.Name := LParamName;
+          LParamInfo.CppType := LParamCppType;
+          LParamList.Add(LParamInfo);
+        end;
+      end;
+    end;
+    
+    // Convert parameter list to array
+    SetLength(LFuncInfo.Parameters, LParamList.Count);
+    for LI := 0 to LParamList.Count - 1 do
+      LFuncInfo.Parameters[LI] := LParamList[LI];
+    
+    // Register external function info
+    ACodeGenerator.RegisterExternalFunction(LFuncInfo);
+  finally
+    LParamList.Free();
+  end;
+end;
+
+function IsExternalFunction(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject): Boolean;
+var
+  LChildren: TJSONArray;
+  LI: Integer;
+  LChild: TJSONValue;
+  LChildObj: TJSONObject;
+  LNodeType: string;
+begin
+  Result := False;
+  LChildren := ACodeGenerator.GetNodeChildren(AMethodNode);
+  if LChildren = nil then
+    Exit;
+  
+  // Check if METHOD has an EXTERNAL child node
+  for LI := 0 to LChildren.Count - 1 do
+  begin
+    LChild := LChildren.Items[LI];
+    if not (LChild is TJSONObject) then
+      Continue;
+    
+    LChildObj := LChild as TJSONObject;
+    LNodeType := ACodeGenerator.GetNodeType(LChildObj);
+    
+    if LNodeType = 'EXTERNAL' then
+    begin
+      Result := True;
+      Exit;
+    end;
+  end;
+end;
+
+function GetExternalLibrary(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject): string;
+var
+  LChildren: TJSONArray;
+  LI: Integer;
+  LChild: TJSONValue;
+  LChildObj: TJSONObject;
+  LNodeType: string;
+  LExternalChildren: TJSONArray;
+  LLiteralNode: TJSONObject;
+begin
+  Result := '';
+  LChildren := ACodeGenerator.GetNodeChildren(AMethodNode);
+  if LChildren = nil then
+    Exit;
+  
+  // Find EXTERNAL node
+  for LI := 0 to LChildren.Count - 1 do
+  begin
+    LChild := LChildren.Items[LI];
+    if not (LChild is TJSONObject) then
+      Continue;
+    
+    LChildObj := LChild as TJSONObject;
+    LNodeType := ACodeGenerator.GetNodeType(LChildObj);
+    
+    if LNodeType = 'EXTERNAL' then
+    begin
+      // Get children of EXTERNAL node
+      LExternalChildren := ACodeGenerator.GetNodeChildren(LChildObj);
+      if (LExternalChildren <> nil) and (LExternalChildren.Count > 0) then
+      begin
+        // First child should be LITERAL with library name
+        LLiteralNode := LExternalChildren.Items[0] as TJSONObject;
+        if ACodeGenerator.GetNodeType(LLiteralNode) = 'LITERAL' then
+        begin
+          Result := ACodeGenerator.GetNodeAttribute(LLiteralNode, 'value');
+          Exit;
+        end;
+      end;
+    end;
+  end;
+end;
+
+function GetCallingConvention(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject): string;
+begin
+  // Get calling convention from METHOD node attribute
+  Result := ACodeGenerator.GetNodeAttribute(AMethodNode, 'callingconvention');
+  // Default to cdecl if not specified
+  if Result = '' then
+    Result := 'cdecl';
+end;
+
+function CallingConventionToCpp(const AConvention: string): string;
+begin
+  // Map Delphi calling convention to C++ attribute
+  if SameText(AConvention, 'stdcall') then
+    Result := '__stdcall'
+  else if SameText(AConvention, 'cdecl') then
+    Result := '__cdecl'
+  else if SameText(AConvention, 'fastcall') then
+    Result := '__fastcall'
+  else
+    Result := '__cdecl';  // Default
+end;
+
+procedure GenerateExternalFunctionDeclaration(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject);
+var
+  LChildren: TJSONArray;
+  LI: Integer;
+  LChild: TJSONValue;
+  LChildObj: TJSONObject;
+  LNodeType: string;
+  LMethodName: string;
+  LReturnType: string;
+  LParameters: string;
+  LCallingConv: string;
+  LCppCallConv: string;
+  LParametersNode: TJSONObject;
+  LParamChildren: TJSONArray;
+  LParamNode: TJSONObject;
+  LNameNode: TJSONObject;
+  LTypeNode: TJSONObject;
+  LParamName: string;
+  LParamPasType: string;
+  LParamCppType: string;
+  LParamStr: string;
+  LKind: string;
+  LFuncInfo: TExternalFunctionInfo;
+  LParamInfo: TExternalParamInfo;
+  LParamList: TList<TExternalParamInfo>;
+begin
+  LChildren := ACodeGenerator.GetNodeChildren(AMethodNode);
+  if LChildren = nil then
+    Exit;
+  
+  // Extract method information
+  LMethodName := ACodeGenerator.GetNodeAttribute(AMethodNode, 'name');
+  LReturnType := 'void';
+  LParameters := '';
+  LCallingConv := GetCallingConvention(ACodeGenerator, AMethodNode);
+  LCppCallConv := CallingConventionToCpp(LCallingConv);
+  
+  // Build external function info for registration
+  LFuncInfo.Name := LMethodName;
+  LFuncInfo.CallingConvention := LCallingConv;
+  LParamList := TList<TExternalParamInfo>.Create();
+  try
+    // Extract return type
+    for LI := 0 to LChildren.Count - 1 do
+    begin
+      LChild := LChildren.Items[LI];
+      if not (LChild is TJSONObject) then
+        Continue;
+      
+      LChildObj := LChild as TJSONObject;
+      LNodeType := ACodeGenerator.GetNodeType(LChildObj);
+      
+      if LNodeType = 'RETURNTYPE' then
+      begin
+        if ACodeGenerator.GetNodeChildren(LChildObj).Count > 0 then
+        begin
+          LChild := ACodeGenerator.GetNodeChildren(LChildObj).Items[0];
+          if LChild is TJSONObject then
+          begin
+            LParamPasType := ACodeGenerator.GetNodeAttribute(LChild as TJSONObject, 'name');
+            LReturnType := MapToCType(LParamPasType);
+          end;
+        end;
+      end;
+    end;
+    
+    // Build parameter list with context-aware mapping
+    LParametersNode := ACodeGenerator.FindNodeByType(LChildren, 'PARAMETERS');
+    if LParametersNode <> nil then
+    begin
+      LParamChildren := ACodeGenerator.GetNodeChildren(LParametersNode);
+      if LParamChildren <> nil then
+      begin
+        for LI := 0 to LParamChildren.Count - 1 do
+        begin
+          LParamNode := LParamChildren.Items[LI] as TJSONObject;
+          if ACodeGenerator.GetNodeType(LParamNode) <> 'PARAMETER' then
+            Continue;
+          
+          // Get parameter kind (const, var, out, or empty)
+          LKind := ACodeGenerator.GetNodeAttribute(LParamNode, 'kind');
+          
+          // Get NAME and TYPE children
+          LNameNode := ACodeGenerator.FindNodeByType(ACodeGenerator.GetNodeChildren(LParamNode), 'NAME');
+          LTypeNode := ACodeGenerator.FindNodeByType(ACodeGenerator.GetNodeChildren(LParamNode), 'TYPE');
+          
+          if (LNameNode = nil) or (LTypeNode = nil) then
+            Continue;
+          
+          LParamName := ACodeGenerator.GetNodeAttribute(LNameNode, 'value');
+          LParamPasType := ACodeGenerator.GetNodeAttribute(LTypeNode, 'name');
+          
+          // Map to raw C types for external function parameters
+          LParamCppType := MapToCType(LParamPasType);
+          
+          // Build parameter string with appropriate modifier
+          if LKind = 'var' then
+            LParamStr := Format('%s& %s', [LParamCppType, LParamName])
+          else if LKind = 'out' then
+            LParamStr := Format('%s& %s', [LParamCppType, LParamName])
+          else
+            LParamStr := Format('%s %s', [LParamCppType, LParamName]);
+          
+          if LParameters <> '' then
+            LParameters := LParameters + ', ';
+          LParameters := LParameters + LParamStr;
+          
+          // Store parameter info for registration
+          LParamInfo.Name := LParamName;
+          LParamInfo.CppType := LParamCppType;
+          LParamList.Add(LParamInfo);
+        end;
+      end;
+    end;
+    
+    // Convert parameter list to array
+    SetLength(LFuncInfo.Parameters, LParamList.Count);
+    for LI := 0 to LParamList.Count - 1 do
+      LFuncInfo.Parameters[LI] := LParamList[LI];
+    
+    // Register external function info
+    ACodeGenerator.RegisterExternalFunction(LFuncInfo);
+  finally
+    LParamList.Free();
+  end;
+  
+  // Generate extern "C" declaration
+  ACodeGenerator.EmitLine('extern "C" {', []);
+  ACodeGenerator.EmitLine('    __declspec(dllimport) %s %s %s(%s);', 
+    [LReturnType, LCppCallConv, LMethodName, LParameters]);
+  ACodeGenerator.EmitLine('}', []);
+end;
+
+{------------------------------------------------------------------------------}
+{ String Transformation Helper }
+{------------------------------------------------------------------------------}
 
 function TransformStringToCharForConst(const AStringExpr: string): string;
 var
@@ -94,6 +473,10 @@ begin
     Result := AStringExpr;
   end;
 end;
+
+{------------------------------------------------------------------------------}
+{ Variable Generation }
+{------------------------------------------------------------------------------}
 
 procedure GenerateVariables(const ACodeGenerator: TNPCodeGenerator; const AVariablesNode: TJSONObject);
 var
@@ -157,6 +540,26 @@ begin
         if LBoundsNode = nil then
           Continue;
         
+        // Get dimensions - if BOUNDS has no children, it's a DYNAMIC ARRAY
+        LDimensions := ACodeGenerator.GetNodeChildren(LBoundsNode);
+        if (LDimensions = nil) or (LDimensions.Count = 0) then
+        begin
+          // DYNAMIC ARRAY: array of T
+          // Last child is element TYPE
+          LElementTypeNode := LTypeChildren.Items[LTypeChildren.Count - 1] as TJSONObject;
+          if ACodeGenerator.GetNodeType(LElementTypeNode) <> 'TYPE' then
+            Continue;
+          
+          LElementType := ACodeGenerator.TranslateType(
+            ACodeGenerator.GetNodeAttribute(LElementTypeNode, 'name'));
+          
+          // Emit: np::DynArray<T> varname;
+          LVarType := Format('np::DynArray<%s>', [LElementType]);
+          ACodeGenerator.VariableTypes.AddOrSetValue(LVarName, LVarType);
+          ACodeGenerator.EmitLine('%s %s;', [LVarType, LVarName]);
+          Continue;
+        end;
+        
         // Last child is element TYPE
         LElementTypeNode := LTypeChildren.Items[LTypeChildren.Count - 1] as TJSONObject;
         if ACodeGenerator.GetNodeType(LElementTypeNode) <> 'TYPE' then
@@ -201,6 +604,18 @@ begin
         ACodeGenerator.VariableTypes.AddOrSetValue(LVarName, LVarType);
         ACodeGenerator.EmitLine('%s %s;', [LVarType, LVarName]);
       end
+      // Check if it's a set type
+      else if LLiteralType = 'set' then
+      begin
+        // SET TYPE: set of T
+        // Children are range expressions (e.g., 0..9 has two EXPRESSION nodes)
+        // For now, we use Integer as the element type
+        // TODO: Extract actual element type from range if needed
+        
+        LVarType := 'np::Set<np::Integer>';
+        ACodeGenerator.VariableTypes.AddOrSetValue(LVarName, LVarType);
+        ACodeGenerator.EmitLine('%s %s;', [LVarType, LVarName]);
+      end
       // Check if it's a pointer type
       else if LLiteralType = 'pointer' then
       begin
@@ -215,6 +630,14 @@ begin
           LVarType := 'void*';  // Fallback for untyped pointer
         
         // Track variable type
+        ACodeGenerator.VariableTypes.AddOrSetValue(LVarName, LVarType);
+        ACodeGenerator.EmitLine('%s %s;', [LVarType, LVarName]);
+      end
+      // Check if it's a file type
+      else if SameText(LLiteralType, 'file') then
+      begin
+        // FILE TYPE: untyped file maps to np::BinaryFile
+        LVarType := 'np::BinaryFile';
         ACodeGenerator.VariableTypes.AddOrSetValue(LVarName, LVarType);
         ACodeGenerator.EmitLine('%s %s;', [LVarType, LVarName]);
       end
@@ -291,6 +714,23 @@ begin
         if LBoundsNode = nil then
           Continue;
         
+        // Get dimensions - if BOUNDS has no children, it's a DYNAMIC ARRAY
+        LDimensions := ACodeGenerator.GetNodeChildren(LBoundsNode);
+        if (LDimensions = nil) or (LDimensions.Count = 0) then
+        begin
+          // DYNAMIC ARRAY: array of T
+          LElementTypeNode := LTypeChildren.Items[LTypeChildren.Count - 1] as TJSONObject;
+          if ACodeGenerator.GetNodeType(LElementTypeNode) <> 'TYPE' then
+            Continue;
+          
+          LElementType := ACodeGenerator.TranslateType(
+            ACodeGenerator.GetNodeAttribute(LElementTypeNode, 'name'));
+          
+          LVarType := Format('np::DynArray<%s>', [LElementType]);
+          ACodeGenerator.EmitLine('extern %s %s;', [LVarType, LVarName]);
+          Continue;
+        end;
+        
         // Last child is element TYPE
         LElementTypeNode := LTypeChildren.Items[LTypeChildren.Count - 1] as TJSONObject;
         if ACodeGenerator.GetNodeType(LElementTypeNode) <> 'TYPE' then
@@ -333,6 +773,12 @@ begin
         
         ACodeGenerator.EmitLine('extern %s %s;', [LVarType, LVarName]);
       end
+      // Check if it's a set type
+      else if LLiteralType = 'set' then
+      begin
+        LVarType := 'np::Set<np::Integer>';
+        ACodeGenerator.EmitLine('extern %s %s;', [LVarType, LVarName]);
+      end
       // Check if it's a pointer type
       else if LLiteralType = 'pointer' then
       begin
@@ -348,6 +794,13 @@ begin
         
         ACodeGenerator.EmitLine('extern %s %s;', [LVarType, LVarName]);
       end
+      // Check if it's a file type
+      else if SameText(LLiteralType, 'file') then
+      begin
+        // FILE TYPE: untyped file maps to np::BinaryFile
+        LVarType := 'np::BinaryFile';
+        ACodeGenerator.EmitLine('extern %s %s;', [LVarType, LVarName]);
+      end
       else
       begin
         LVarType := ACodeGenerator.TranslateType(ACodeGenerator.GetNodeAttribute(LTypeNode, 'name'));
@@ -356,6 +809,10 @@ begin
     end;
   end;
 end;
+
+{------------------------------------------------------------------------------}
+{ Constant Generation }
+{------------------------------------------------------------------------------}
 
 procedure GenerateConstants(const ACodeGenerator: TNPCodeGenerator; const AConstantsNode: TJSONObject);
 var
@@ -551,6 +1008,10 @@ begin
   end;
 end;
 
+{------------------------------------------------------------------------------}
+{ Type Declaration Helpers }
+{------------------------------------------------------------------------------}
+
 function IsStructType(const ACodeGenerator: TNPCodeGenerator; const ATypeName: string; const ATypeSectionNode: TJSONObject): Boolean;
 var
   LChildren: TJSONArray;
@@ -598,6 +1059,10 @@ begin
   LCppType := ACodeGenerator.TranslateType(LBaseType);
   ACodeGenerator.EmitLine('using %s = %s;', [ATypeName, LCppType]);
 end;
+
+{------------------------------------------------------------------------------}
+{ Type Declaration Generation }
+{------------------------------------------------------------------------------}
 
 procedure GenerateTypeDeclarations(const ACodeGenerator: TNPCodeGenerator; const ATypeSectionNode: TJSONObject);
 var
@@ -879,6 +1344,10 @@ begin
   ACodeGenerator.EmitLine('using %s = %s*;', [ATypeName, LTargetType]);
 end;
 
+{------------------------------------------------------------------------------}
+{ Function Declaration Generation }
+{------------------------------------------------------------------------------}
+
 procedure GenerateFunctionDeclarations(const ACodeGenerator: TNPCodeGenerator; const AAST: TJSONArray);
 var
   LI: Integer;
@@ -916,14 +1385,45 @@ var
   LMethodName: string;
   LReturnType: string;
   LParameters: string;
+  LLibrary: string;
+  LLibName: string;
+  LStatementsNode: TJSONObject;
 begin
+  // Skip if this is an implementation of a forward-declared function
+  LMethodName := ACodeGenerator.GetNodeAttribute(AMethodNode, 'name');
   LChildren := ACodeGenerator.GetNodeChildren(AMethodNode);
+  
   if LChildren = nil then
     Exit;
   
-  // Extract method information
-  // Get method name directly from METHOD node attribute
-  LMethodName := ACodeGenerator.GetNodeAttribute(AMethodNode, 'name');
+  LStatementsNode := ACodeGenerator.FindNodeByType(LChildren, 'STATEMENTS');
+  // If this has a body (implementation) AND was forward declared, skip
+  if (LStatementsNode <> nil) and ACodeGenerator.IsForwardDeclared(LMethodName) then
+    Exit;
+  
+  // Check if this is an external function
+  if IsExternalFunction(ACodeGenerator, AMethodNode) then
+  begin
+    // DON'T generate any declaration for external functions
+    // The function exists in an external DLL - just track the library
+    // for linking and register the function info for call-site conversions.
+    
+    // Register external function info (needed for string conversions at call sites)
+    RegisterExternalFunctionInfo(ACodeGenerator, AMethodNode);
+    
+    // Track library for linking
+    LLibrary := GetExternalLibrary(ACodeGenerator, AMethodNode);
+    if LLibrary <> '' then
+    begin
+      // Strip .dll extension
+      LLibName := ChangeFileExt(LLibrary, '');
+      ACodeGenerator.AddExternalLibrary(LLibName);
+    end;
+    
+    Exit;  // Skip declaration generation - linker will resolve
+  end;
+  
+  // Normal function declaration (existing code)
   LReturnType := 'void';
   LParameters := '';
   
@@ -966,14 +1466,32 @@ var
   LParameters: string;
   LStatementsNode: TJSONObject;
   LVariablesNode: TJSONObject;
+  LIsForward: Boolean;
 begin
+  // Skip implementation for external functions
+  if IsExternalFunction(ACodeGenerator, AMethodNode) then
+    Exit;
+  
+  // Get method name
+  LMethodName := ACodeGenerator.GetNodeAttribute(AMethodNode, 'name');
+  
+  // Check if this is a forward declaration
+  LIsForward := HasForwardDirective(ACodeGenerator, AMethodNode);
+  
+  if LIsForward then
+  begin
+    // For forward declarations: skip emission in .cpp (already in .h)
+    // Track this function as forward declared
+    ACodeGenerator.AddForwardDeclaration(LMethodName);
+    Exit;
+  end;
+  
+  // Normal function implementation
   LChildren := ACodeGenerator.GetNodeChildren(AMethodNode);
   if LChildren = nil then
     Exit;
   
-  // Extract method information
-  // Get method name directly from METHOD node attribute
-  LMethodName := ACodeGenerator.GetNodeAttribute(AMethodNode, 'name');
+  // Extract method information (LMethodName already obtained above)
   LReturnType := 'void';
   LParameters := '';
   LStatementsNode := nil;
@@ -1003,9 +1521,15 @@ begin
   // Get parameter list
   LParameters := GenerateParameterList(ACodeGenerator, AMethodNode);
   
-  // Generate function signature
-  ACodeGenerator.EmitLine('%s %s(%s) {', [LReturnType, LMethodName, LParameters]);
-  ACodeGenerator.IncIndent();
+  // Set routine context for Exit support
+  if LReturnType <> 'void' then
+    ACodeGenerator.SetRoutineContext('FUNCTION', LReturnType)
+  else
+    ACodeGenerator.SetRoutineContext('PROCEDURE', '');
+  try
+    // Generate function signature
+    ACodeGenerator.EmitLine('%s %s(%s) {', [LReturnType, LMethodName, LParameters]);
+    ACodeGenerator.IncIndent();
   
   // Declare Result variable for functions (not procedures)
   if LReturnType <> 'void' then
@@ -1030,8 +1554,11 @@ begin
     ACodeGenerator.EmitLine('return Result;', []);
   end;
   
-  ACodeGenerator.DecIndent();
-  ACodeGenerator.EmitLine('}', []);
+    ACodeGenerator.DecIndent();
+    ACodeGenerator.EmitLine('}', []);
+  finally
+    ACodeGenerator.ClearRoutineContext();
+  end;
 end;
 
 procedure GenerateFunctionImplementationWithExport(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject; const AIsExported: Boolean);
@@ -1049,7 +1576,19 @@ var
   LCallingConvention: string;
   LCallConv: string;
   LExportPrefix: string;
+  LIsForward: Boolean;
 begin
+  // Skip forward declarations
+  LMethodName := ACodeGenerator.GetNodeAttribute(AMethodNode, 'name');
+  LIsForward := HasForwardDirective(ACodeGenerator, AMethodNode);
+  
+  if LIsForward then
+  begin
+    // For forward declarations: skip emission (already tracked)
+    ACodeGenerator.AddForwardDeclaration(LMethodName);
+    Exit;
+  end;
+  
   LChildren := ACodeGenerator.GetNodeChildren(AMethodNode);
   if LChildren = nil then
     Exit;
@@ -1100,10 +1639,16 @@ begin
   // Get parameter list
   LParameters := GenerateParameterList(ACodeGenerator, AMethodNode);
   
-  // Generate function signature with export and calling convention
-  ACodeGenerator.EmitLine('%s%s%s %s(%s) {', 
-    [LExportPrefix, LReturnType, LCallConv, LMethodName, LParameters]);
-  ACodeGenerator.IncIndent();
+  // Set routine context for Exit support
+  if LReturnType <> 'void' then
+    ACodeGenerator.SetRoutineContext('FUNCTION', LReturnType)
+  else
+    ACodeGenerator.SetRoutineContext('PROCEDURE', '');
+  try
+    // Generate function signature with export and calling convention
+    ACodeGenerator.EmitLine('%s%s%s %s(%s) {', 
+      [LExportPrefix, LReturnType, LCallConv, LMethodName, LParameters]);
+    ACodeGenerator.IncIndent();
   
   // Declare Result variable for functions (not procedures)
   if LReturnType <> 'void' then
@@ -1128,8 +1673,11 @@ begin
     ACodeGenerator.EmitLine('return Result;', []);
   end;
   
-  ACodeGenerator.DecIndent();
-  ACodeGenerator.EmitLine('}', []);
+    ACodeGenerator.DecIndent();
+    ACodeGenerator.EmitLine('}', []);
+  finally
+    ACodeGenerator.ClearRoutineContext();
+  end;
 end;
 
 function GenerateParameterList(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject): string;

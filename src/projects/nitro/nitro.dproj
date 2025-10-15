@@ -80,7 +80,7 @@
         <UWP_DelphiLogo150>$(BDS)\bin\Artwork\Windows\UWP\delphi_UwpDefault_150.png</UWP_DelphiLogo150>
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;$(DCC_Namespace)</DCC_Namespace>
         <BT_BuildType>Debug</BT_BuildType>
-        <VerInfo_Keys>CompanyName=tinyBigGAMES™ LLC;FileDescription=NitroPascal;FileVersion=0.2.0.0;InternalName=NitroPascal;LegalCopyright=Copyright © 2025-present tinyBigGAMES™ LLC;LegalTrademarks=All Rights Reserved.;OriginalFilename=nitro.exe;ProgramID=com.tinybiggames.nitro;ProductName=NitroPascal;ProductVersion=1.0.0.0;Comments=https://github.com/tinyBigGAMES/NitroPascal</VerInfo_Keys>
+        <VerInfo_Keys>CompanyName=tinyBigGAMES™ LLC;FileDescription=NitroPascal;FileVersion=0.3.0.0;InternalName=NitroPascal;LegalCopyright=Copyright © 2025-present tinyBigGAMES™ LLC;LegalTrademarks=All Rights Reserved.;OriginalFilename=nitro.exe;ProgramID=com.tinybiggames.nitro;ProductName=NitroPascal;ProductVersion=1.0.0.0;Comments=https://github.com/tinyBigGAMES/NitroPascal</VerInfo_Keys>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <DCC_ExeOutput>..\..\..\bin</DCC_ExeOutput>
         <Manifest_File>$(BDS)\bin\default_app.manifest</Manifest_File>
@@ -89,7 +89,7 @@
         <Icon_MainIcon>nitro_Icon.ico</Icon_MainIcon>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_MajorVer>0</VerInfo_MajorVer>
-        <VerInfo_MinorVer>2</VerInfo_MinorVer>
+        <VerInfo_MinorVer>3</VerInfo_MinorVer>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1)'!=''">
         <DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
@@ -108,7 +108,7 @@
         <VerInfo_Locale>1033</VerInfo_Locale>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_MajorVer>0</VerInfo_MajorVer>
-        <VerInfo_MinorVer>2</VerInfo_MinorVer>
+        <VerInfo_MinorVer>3</VerInfo_MinorVer>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
         <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
@@ -120,7 +120,7 @@
         <VerInfo_Locale>1033</VerInfo_Locale>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_MajorVer>0</VerInfo_MajorVer>
-        <VerInfo_MinorVer>2</VerInfo_MinorVer>
+        <VerInfo_MinorVer>3</VerInfo_MinorVer>
     </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">

@@ -98,7 +98,9 @@ begin
   ACodeGenerator.EmitLine('#ifdef _WIN32', []);
   ACodeGenerator.EmitLine('  #define EXPORT_API __declspec(dllexport)', []);
   ACodeGenerator.EmitLine('  #define STDCALL __stdcall', []);
-  ACodeGenerator.EmitLine('  #define CDECL __cdecl', []);
+  ACodeGenerator.EmitLine('  #ifndef CDECL', []);
+  ACodeGenerator.EmitLine('    #define CDECL __cdecl', []);
+  ACodeGenerator.EmitLine('  #endif', []);
   ACodeGenerator.EmitLine('#else', []);
   ACodeGenerator.EmitLine('  #define EXPORT_API __attribute__((visibility("default")))', []);
   ACodeGenerator.EmitLine('  #define STDCALL', []);
@@ -350,11 +352,15 @@ begin
     end;
     
     // Generate main() function
-    ACodeGenerator.EmitLine('int main() {', []);
+    ACodeGenerator.EmitLine('int main(int argc, char* argv[]) {', []);
     ACodeGenerator.IncIndent();
     
     // Initialize console for UTF-8 support (Windows)
     ACodeGenerator.EmitLine('np::InitializeConsole();', []);
+    ACodeGenerator.EmitLn();
+    
+    // Initialize command line parameters
+    ACodeGenerator.EmitLine('np::InitCommandLine(argc, argv);', []);
     ACodeGenerator.EmitLn();
     
     // Generate statements
@@ -426,6 +432,7 @@ var
   LUsesNode: TJSONObject;
   LHasInterface: Boolean;
   LFirstMethod: Boolean;
+  LMethodName: string;
 begin
   // Generate file header comment
   ACodeGenerator.EmitLine('/**', []);
@@ -497,6 +504,26 @@ begin
         end;
       end;
       
+      // Track forward declarations before generating function declarations
+      for LI := 0 to LChildren.Count - 1 do
+      begin
+        LChild := LChildren.Items[LI];
+        if not (LChild is TJSONObject) then
+          Continue;
+        
+        LChildObj := LChild as TJSONObject;
+        LNodeType := ACodeGenerator.GetNodeType(LChildObj);
+        
+        if (LNodeType = 'METHOD') or (LNodeType = 'PROCEDURE') or (LNodeType = 'FUNCTION') then
+        begin
+          if NitroPascal.CodeGen.Declarations.HasForwardDirective(ACodeGenerator, LChildObj) then
+          begin
+            LMethodName := ACodeGenerator.GetNodeAttribute(LChildObj, 'name');
+            ACodeGenerator.AddForwardDeclaration(LMethodName);
+          end;
+        end;
+      end;
+      
       // Second pass: Generate function declarations
       LFirstMethod := True;
       for LI := 0 to LChildren.Count - 1 do
@@ -545,6 +572,26 @@ begin
           ACodeGenerator.EmitLine('// Type declarations', []);
           NitroPascal.CodeGen.Declarations.GenerateTypeDeclarations(ACodeGenerator, LChildObj);
           ACodeGenerator.EmitLn();
+        end;
+      end;
+      
+      // Track forward declarations before generating function declarations
+      for LI := 0 to LChildren.Count - 1 do
+      begin
+        LChild := LChildren.Items[LI];
+        if not (LChild is TJSONObject) then
+          Continue;
+        
+        LChildObj := LChild as TJSONObject;
+        LNodeType := ACodeGenerator.GetNodeType(LChildObj);
+        
+        if LNodeType = 'METHOD' then
+        begin
+          if NitroPascal.CodeGen.Declarations.HasForwardDirective(ACodeGenerator, LChildObj) then
+          begin
+            LMethodName := ACodeGenerator.GetNodeAttribute(LChildObj, 'name');
+            ACodeGenerator.AddForwardDeclaration(LMethodName);
+          end;
         end;
       end;
       

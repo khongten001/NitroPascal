@@ -24,66 +24,10 @@ uses
   NitroPascal.Errors,
   NitroPascal.PasToJSON,
   NitroPascal.CodeGen,
-  NitroPascal.Utils;
+  NitroPascal.Utils,
+  NitroPascal.BuildSettings;
 
 type
-  { TNPOptimizeMode }
-  TNPOptimizeMode = (
-    omDebug,           // Debug mode with safety checks
-    omReleaseSafe,     // Optimized with safety checks
-    omReleaseFast,     // Fully optimized, minimal safety
-    omReleaseSmall     // Optimized for size
-  );
-
-  { TNPTemplate }
-  TNPTemplate = (
-    tpProgram,     // Program template
-    tpLibrary,     // Library template
-    tpUnit         // Unit template
-  );
-
-  { TNPBuildSettings }
-  TNPBuildSettings = class
-  private
-    FTarget: string;
-    FOptimize: TNPOptimizeMode;
-    FEnableExceptions: Boolean;
-    FStripSymbols: Boolean;
-    FModulePaths: TStringList;
-    FIncludePaths: TStringList;
-    FLibraryPaths: TStringList;
-    FLinkLibraries: TStringList;
-    
-    function NormalizePath(const APath: string): string;
-    function IsValidIdentifier(const AValue: string): Boolean;
-    
-  public
-    constructor Create();
-    destructor Destroy(); override;
-    
-    procedure AddModulePath(const APath: string);
-    procedure AddIncludePath(const APath: string);
-    procedure AddLibraryPath(const APath: string);
-    procedure AddLinkLibrary(const ALibrary: string);
-    
-    procedure ClearModulePaths();
-    procedure ClearIncludePaths();
-    procedure ClearLibraryPaths();
-    procedure ClearLinkLibraries();
-    
-    function GetModulePaths(): TArray<string>;
-    function GetIncludePaths(): TArray<string>;
-    function GetLibraryPaths(): TArray<string>;
-    function GetLinkLibraries(): TArray<string>;
-    
-    procedure Reset();
-    function ValidateAndNormalizeTarget(const ATarget: string): string;
-    
-    property Target: string read FTarget write FTarget;
-    property Optimize: TNPOptimizeMode read FOptimize write FOptimize;
-    property EnableExceptions: Boolean read FEnableExceptions write FEnableExceptions;
-    property StripSymbols: Boolean read FStripSymbols write FStripSymbols;
-  end;
 
   TNPCompilerOutputCallback = reference to procedure(const AText: string; const AUserData: Pointer);
 
@@ -135,6 +79,7 @@ type
     procedure SetOptimize(const AMode: TNPOptimizeMode);
     procedure SetEnableExceptions(const AEnable: Boolean);
     procedure SetStripSymbols(const AStrip: Boolean);
+    procedure SetAppType(const AAppType: TNPAppType);
     
     procedure AddModulePath(const APath: string);
     procedure AddIncludePath(const APath: string);
@@ -159,7 +104,7 @@ const
   '''
   program %s;
   begin
-    WriteLn(''Hello world, welcome to NitroPascal!'');
+    WriteLn('Hello world, welcome to NitroPascal!');
   end.
   ''';
 
@@ -210,186 +155,6 @@ const
   end.
   ''';
 
-{ TNPBuildSettings }
-
-constructor TNPBuildSettings.Create();
-begin
-  inherited Create();
-  
-  FTarget := '';
-  FOptimize := omDebug;
-  FEnableExceptions := True;
-  FStripSymbols := False;
-  
-  FModulePaths := TStringList.Create();
-  FIncludePaths := TStringList.Create();
-  FLibraryPaths := TStringList.Create();
-  FLinkLibraries := TStringList.Create();
-end;
-
-destructor TNPBuildSettings.Destroy();
-begin
-  FModulePaths.Free();
-  FIncludePaths.Free();
-  FLibraryPaths.Free();
-  FLinkLibraries.Free();
-  inherited;
-end;
-
-function TNPBuildSettings.NormalizePath(const APath: string): string;
-begin
-  // Normalize path separators for Zig (forward slashes)
-  Result := StringReplace(APath, '\', '/', [rfReplaceAll]);
-end;
-
-function TNPBuildSettings.IsValidIdentifier(const AValue: string): Boolean;
-var
-  LI: Integer;
-  LC: Char;
-begin
-  Result := False;
-  
-  if AValue.IsEmpty then
-    Exit;
-  
-  for LI := 1 to AValue.Length do
-  begin
-    LC := AValue[LI];
-    if not CharInSet(LC, ['a'..'z', '0'..'9', '_']) then
-      Exit;
-  end;
-  
-  Result := True;
-end;
-
-function TNPBuildSettings.ValidateAndNormalizeTarget(const ATarget: string): string;
-var
-  LTrimmed: string;
-  LParts: TArray<string>;
-  LI: Integer;
-  LPart: string;
-begin
-  LTrimmed := ATarget.Trim().ToLower();
-  
-  // Empty or 'native' is valid
-  if (LTrimmed = '') or (LTrimmed = 'native') then
-    Exit('native');
-  
-  // Split by dash
-  LParts := LTrimmed.Split(['-']);
-  
-  // Must have 2 or 3 parts: arch-os or arch-os-abi
-  if (Length(LParts) < 2) or (Length(LParts) > 3) then
-    raise Exception.CreateFmt(
-      'Invalid target format: "%s"' + sLineBreak +
-      'Expected format: arch-os or arch-os-abi' + sLineBreak +
-      'Examples: x86_64-linux, aarch64-macos, wasm32-wasi',
-      [ATarget]
-    );
-  
-  // Validate and clean each part
-  for LI := 0 to High(LParts) do
-  begin
-    LPart := LParts[LI].Trim();
-    
-    // Remove any extra spaces or invalid characters
-    if Pos(' ', LPart) > 0 then
-    begin
-      // If contains space, take last word (handles "triple x86_64" → "x86_64")
-      LPart := LPart.Split([' '])[High(LPart.Split([' ']))];
-    end;
-    
-    // Ensure it's a valid identifier (alphanumeric + underscore)
-    if not IsValidIdentifier(LPart) then
-      raise Exception.CreateFmt(
-        'Invalid component "%s" in target "%s"' + sLineBreak +
-        'Components must be alphanumeric (a-z, 0-9, _)',
-        [LPart, ATarget]
-      );
-    
-    LParts[LI] := LPart;
-  end;
-  
-  // Reconstruct normalized target
-  Result := string.Join('-', LParts);
-end;
-
-procedure TNPBuildSettings.AddModulePath(const APath: string);
-begin
-  if not FModulePaths.Contains(APath) then
-    FModulePaths.Add(APath);
-end;
-
-procedure TNPBuildSettings.AddIncludePath(const APath: string);
-begin
-  if not FIncludePaths.Contains(APath) then
-    FIncludePaths.Add(APath);
-end;
-
-procedure TNPBuildSettings.AddLibraryPath(const APath: string);
-begin
-  if not FLibraryPaths.Contains(APath) then
-    FLibraryPaths.Add(APath);
-end;
-
-procedure TNPBuildSettings.AddLinkLibrary(const ALibrary: string);
-begin
-  if not FLinkLibraries.Contains(ALibrary) then
-    FLinkLibraries.Add(ALibrary);
-end;
-
-procedure TNPBuildSettings.ClearModulePaths();
-begin
-  FModulePaths.Clear();
-end;
-
-procedure TNPBuildSettings.ClearIncludePaths();
-begin
-  FIncludePaths.Clear();
-end;
-
-procedure TNPBuildSettings.ClearLibraryPaths();
-begin
-  FLibraryPaths.Clear();
-end;
-
-procedure TNPBuildSettings.ClearLinkLibraries();
-begin
-  FLinkLibraries.Clear();
-end;
-
-function TNPBuildSettings.GetModulePaths(): TArray<string>;
-begin
-  Result := FModulePaths.ToStringArray();
-end;
-
-function TNPBuildSettings.GetIncludePaths(): TArray<string>;
-begin
-  Result := FIncludePaths.ToStringArray();
-end;
-
-function TNPBuildSettings.GetLibraryPaths(): TArray<string>;
-begin
-  Result := FLibraryPaths.ToStringArray();
-end;
-
-function TNPBuildSettings.GetLinkLibraries(): TArray<string>;
-begin
-  Result := FLinkLibraries.ToStringArray();
-end;
-
-procedure TNPBuildSettings.Reset();
-begin
-  FTarget := '';
-  FOptimize := omDebug;
-  FEnableExceptions := False;
-  FStripSymbols := False;
-  
-  FModulePaths.Clear();
-  FIncludePaths.Clear();
-  FLibraryPaths.Clear();
-  FLinkLibraries.Clear();
-end;
 
 { TNPCompiler }
 
@@ -486,6 +251,10 @@ begin
       LParser.SearchPath := TPath.GetDirectoryName(AFilename);
       LParser.Formatted := True;
       
+      // Setup compiler defines before parsing
+      // This includes DEBUG/RELEASE and platform defines (WIN64, LINUX, etc.)
+      LParser.SetupDefines(FBuildSettings);
+      
       if not LParser.Parse(AFilename, FErrorManager) then
         Exit;
       
@@ -507,6 +276,12 @@ begin
       
       if not LCodeGen.GenerateFromFile(LJSONPath, FErrorManager) then
         Exit;
+      
+      // Phase 2.5: Collect external libraries and add to build settings
+      var LExternalLibs := LCodeGen.GetExternalLibraries();
+      var LLib: string;
+      for LLib in LExternalLibs do
+        AddLinkLibrary(LLib);
       
       Result := True;
       
@@ -716,6 +491,16 @@ begin
           LBuilder.AppendLine('        .name = "' + FProjectName + '",');
           LBuilder.AppendLine('        .root_module = module,');
           LBuilder.AppendLine('    });');
+          
+          // Set Windows subsystem for GUI applications
+          if FBuildSettings.AppType = atGUI then
+          begin
+            LBuilder.AppendLine('');
+            LBuilder.AppendLine('    // Set GUI subsystem (no console window)');
+            LBuilder.AppendLine('    if (target.result.os.tag == .windows) {');
+            LBuilder.AppendLine('        exe.subsystem = .Windows;');
+            LBuilder.AppendLine('    }');
+          end;
         end;
       
       tpLibrary:
@@ -947,8 +732,10 @@ var
   LMainPasPath: string;
   LExitCode: DWORD;
   LEntryPointName: string;
-  LLastDescription: string;
+  //LLastDescription: string;
+  //LLastLen: Integer;
   LZigExe: string;
+  //LOutput: string;
 begin
   // Ensure we're in a project
   if FProjectDir.IsEmpty then
@@ -1017,63 +804,32 @@ begin
     Exit;
   end;
 
-  LLastDescription := '';
   TNPUtils.CaptureZigConsoleOutput(
     'Building ' + FProjectName,
     PChar(LZigExe),
-    'build',
+    'build --color off --summary all --prominent-compile-errors',
     FProjectDir,
     LExitCode,
     nil,
     procedure(const ALine: string; const AUserData: Pointer)
     var
       LTrimmed: string;
-      LBracketPos: Integer;
-      LDescription: string;
     begin
-      LTrimmed := ALine.Trim();
-
-      // Skip empty lines
+      LTrimmed := ALine.Trim;
       if LTrimmed = '' then
         Exit;
 
-      // Check if it's a progress line: [N/M] Description
-      if (LTrimmed.Length > 0) and (LTrimmed[1] = '[') then
+      if (LTrimmed[1] = '[') then
       begin
-        LBracketPos := Pos(']', LTrimmed);
-        if LBracketPos > 0 then
-        begin
-          // Extract description after "]"
-          LDescription := Copy(LTrimmed, LBracketPos + 1, Length(LTrimmed)).Trim();
-
-          if LDescription = LLastDescription then
-          begin
-            // Same description - overwrite current line
-            Print(#13'  %s', [LTrimmed]);
-            Print(#27'[0K', []);
-          end
-          else
-          begin
-            // New description - start new line
-            if LLastDescription <> '' then
-              PrintLn(''); // Finalize previous
-            Print(#13'  %s', [LTrimmed]);
-            Print(#27'[0K', []);
-            LLastDescription := LDescription;
-          end;
-          Exit;
-        end;
-      end;
-
-      // Regular non-progress output
-      if LLastDescription <> '' then
+        Print(#13+'  '+LTrimmed+#27'[K');
+      end
+      else
       begin
-        PrintLn(''); // Finalize progress
-        LLastDescription := '';
+        PrintLn('');
+        PrintLn('  %s', [LTrimmed]);
       end;
-      PrintLn('  %s', [LTrimmed]);
     end
-  );
+    );
 
   if LExitCode <> 0 then
     raise Exception.CreateFmt('Zig build failed with exit code %d', [LExitCode]);
@@ -1205,6 +961,11 @@ end;
 procedure TNPCompiler.SetStripSymbols(const AStrip: Boolean);
 begin
   FBuildSettings.StripSymbols := AStrip;
+end;
+
+procedure TNPCompiler.SetAppType(const AAppType: TNPAppType);
+begin
+  FBuildSettings.AppType := AAppType;
 end;
 
 procedure TNPCompiler.AddModulePath(const APath: string);

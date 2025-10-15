@@ -19,6 +19,7 @@ implementation
 
 uses
   System.SysUtils,
+  NitroPascal.BuildSettings,
   NitroPascal.Compiler,
   NitroPascal.Utils;
 
