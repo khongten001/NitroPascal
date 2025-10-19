@@ -29,7 +29,9 @@ uses
   NitroPascal.PasToJSON in '..\..\src\NitroPascal.PasToJSON.pas',
   NitroPascal.Preprocessor in '..\..\src\NitroPascal.Preprocessor.pas',
   NitroPascal.Utils in '..\..\src\NitroPascal.Utils.pas',
-  NitroPascal.BuildSettings in '..\..\src\NitroPascal.BuildSettings.pas';
+  NitroPascal.BuildSettings in '..\..\src\NitroPascal.BuildSettings.pas',
+  NitroPascal.Symbols in '..\..\src\NitroPascal.Symbols.pas',
+  NitroPascal.Samantics in '..\..\src\NitroPascal.Samantics.pas';
 
 begin
   RunTestbed();

@@ -24,16 +24,17 @@ uses
   NitroPascal.Errors;
 
 type
-  { External Function Parameter Info }
+  { TExternalParamInfo }
   TExternalParamInfo = record
     Name: string;
     CppType: string;  // The actual C++ type: 'const wchar_t*', 'const char*', etc.
   end;
   
-  { External Function Info }
+  { TExternalFunctionInfo }
   TExternalFunctionInfo = record
     Name: string;
     CallingConvention: string;
+    ReturnType: string;  // C++ return type (e.g., 'void', 'int', 'bool')
     Parameters: TArray<TExternalParamInfo>;
   end;
 
@@ -57,6 +58,10 @@ type
     FCurrentRoutineType: string;  // 'FUNCTION' or 'PROCEDURE' or empty
     FCurrentReturnType: string;  // Return type for functions
     FForwardDeclarations: TList<string>;  // Track forward declared function names
+    FIncludeHeaders: TArray<string>;
+    FCurrentSourceFile: string;  // Current source file for #line directives
+    FCurrentSourceLine: Integer;  // Current source line for #line directives
+    FEmitLineDirectives: Boolean;  // Enable/disable #line directive emission
     
     procedure InitializeTypeMap;
     procedure InitializeSupportedNodes;
@@ -132,6 +137,7 @@ type
     property SupportedNodes: TList<string> read FSupportedNodes;
     property WithStack: TList<string> read FWithStack;
     property VariableTypes: TDictionary<string, string> read FVariableTypes;
+    property ExternalFunctions: TDictionary<string, TExternalFunctionInfo> read FExternalFunctions;
     
     // Helper to get variable type
     function GetVariableType(const AVariableName: string): string;
@@ -159,6 +165,17 @@ type
     // Forward declaration tracking
     function IsForwardDeclared(const AFuncName: string): Boolean;
     procedure AddForwardDeclaration(const AFuncName: string);
+    
+    // Set external functions dictionary (for sharing across generations)
+    procedure SetExternalFunctionsDict(ADict: TDictionary<string, TExternalFunctionInfo>);
+    
+    // Include headers management
+    procedure SetIncludeHeaders(const AHeaders: TArray<string>);
+    function GetIncludeHeaders(): TArray<string>;
+    
+    // Line directive emission for error mapping
+    procedure EmitLineDirective(const ASourceFile: string; const ASourceLine: Integer);
+    property EmitLineDirectives: Boolean read FEmitLineDirectives write FEmitLineDirectives;
   end;
 
   { TNPCodeGen }
@@ -167,6 +184,8 @@ type
     FOutputFolder: string;
     FCleanOutputFolder: Boolean;
     FGenerator: TNPCodeGenerator;  // Keep reference to access external libraries
+    FSharedExternalFunctions: TDictionary<string, TExternalFunctionInfo>;  // Shared across all generations
+    FIncludeHeaders: TArray<string>;
   public
     constructor Create;
     destructor Destroy; override;
@@ -177,6 +196,7 @@ type
     
     property OutputFolder: string read FOutputFolder write FOutputFolder;
     property CleanOutputFolder: Boolean read FCleanOutputFolder write FCleanOutputFolder;
+    property IncludeHeaders: TArray<string> read FIncludeHeaders write FIncludeHeaders;
   end;
 
 function GetRTLFunctionName(const AFuncName: string): string;
@@ -187,12 +207,13 @@ uses
   NitroPascal.CodeGen.Expressions,
   NitroPascal.CodeGen.Statements,
   NitroPascal.CodeGen.Declarations,
-  NitroPascal.CodeGen.Files;
+  NitroPascal.CodeGen.Files,
+  NitroPascal.Samantics;
 
 const
   // Map of Delphi RTL function names (uppercase) to correct C++ RTL names
   // CENTRALIZED: Used by both Expressions and Statements units
-  RTL_FUNCTION_MAP: array[0..77] of record Name: string; CppName: string; end = (
+  RTL_FUNCTION_MAP: array[0..124] of record Name: string; CppName: string; end = (
     // I/O Functions
     (Name: 'WRITELN'; CppName: 'WriteLn'),
     (Name: 'WRITE'; CppName: 'Write'),
@@ -229,6 +250,10 @@ const
     (Name: 'LOWERCASE'; CppName: 'LowerCase'),
     (Name: 'BOOLTOSTR'; CppName: 'BoolToStr'),
     (Name: 'FORMAT'; CppName: 'Format'),
+    (Name: 'STRINGREPLACE'; CppName: 'StringReplace'),
+    (Name: 'COMPARESTR'; CppName: 'CompareStr'),
+    (Name: 'SAMETEXT'; CppName: 'SameText'),
+    (Name: 'QUOTEDSTR'; CppName: 'QuotedStr'),
     // Ordinal Functions
     (Name: 'ORD'; CppName: 'Ord'),
     (Name: 'CHR'; CppName: 'Chr'),
@@ -285,7 +310,56 @@ const
     (Name: 'BLOCKWRITE'; CppName: 'BlockWrite'),
     (Name: 'FILESIZE'; CppName: 'FileSize'),
     (Name: 'FILEPOS'; CppName: 'FilePos'),
-    (Name: 'SEEK'; CppName: 'Seek')
+    (Name: 'SEEK'; CppName: 'Seek'),
+    // Memory Management - Extended
+    (Name: 'ALLOCMEM'; CppName: 'AllocMem'),
+    (Name: 'FILLBYTE'; CppName: 'FillByte'),
+    (Name: 'FILLWORD'; CppName: 'FillWord'),
+    (Name: 'FILLDWORD'; CppName: 'FillDWord'),
+    // String Operations - Extended
+    (Name: 'UNIQUESTRING'; CppName: 'UniqueString'),
+    (Name: 'SETSTRING'; CppName: 'SetString'),
+    (Name: 'VAL'; CppName: 'Val'),
+    (Name: 'STR'; CppName: 'Str'),
+    (Name: 'UPCASE'; CppName: 'UpCase'),
+    (Name: 'STRINGOFCHAR'; CppName: 'StringOfChar'),
+    (Name: 'WIDECHARLEN'; CppName: 'WideCharLen'),
+    (Name: 'WIDECHARTOSTRING'; CppName: 'WideCharToString'),
+    (Name: 'STRINGTOWIDECHAR'; CppName: 'StringToWideChar'),
+    (Name: 'WIDECHARTOSTRVAR'; CppName: 'WideCharToStrVar'),
+    // Math Functions - Extended
+    (Name: 'INT'; CppName: 'Int'),
+    (Name: 'FRAC'; CppName: 'Frac'),
+    (Name: 'EXP'; CppName: 'Exp'),
+    (Name: 'LN'; CppName: 'Ln'),
+    (Name: 'POWER'; CppName: 'Power'),
+    (Name: 'PI'; CppName: 'Pi'),
+    (Name: 'ARCTAN2'; CppName: 'ArcTan2'),
+    (Name: 'SINH'; CppName: 'Sinh'),
+    (Name: 'COSH'; CppName: 'Cosh'),
+    (Name: 'TANH'; CppName: 'Tanh'),
+    (Name: 'ARCSINH'; CppName: 'ArcSinh'),
+    (Name: 'ARCCOSH'; CppName: 'ArcCosh'),
+    (Name: 'ARCTANH'; CppName: 'ArcTanh'),
+    (Name: 'LOG10'; CppName: 'Log10'),
+    (Name: 'LOG2'; CppName: 'Log2'),
+    (Name: 'LOGN'; CppName: 'LogN'),
+    // Ordinal Operations - Extended
+    (Name: 'ODD'; CppName: 'Odd'),
+    (Name: 'SWAP'; CppName: 'Swap'),
+    // Program Control - Extended
+    (Name: 'RUNERROR'; CppName: 'RunError'),
+    (Name: 'ABORT'; CppName: 'Abort'),
+    // File I/O - Extended
+    (Name: 'READ'; CppName: 'Read'),
+    (Name: 'EOLN'; CppName: 'Eoln'),
+    (Name: 'SEEKEOF'; CppName: 'SeekEof'),
+    (Name: 'SEEKEOLN'; CppName: 'SeekEoln'),
+    (Name: 'FLUSH'; CppName: 'Flush'),
+    (Name: 'TRUNCATE'; CppName: 'Truncate'),
+    (Name: 'ERASE'; CppName: 'DeleteFile'),  // Alias for DeleteFile
+    (Name: 'RENAME'; CppName: 'RenameFile'),  // Alias for RenameFile
+    (Name: 'IORESULT'; CppName: 'IOResult')
   );
 
 function GetRTLFunctionName(const AFuncName: string): string;
@@ -321,11 +395,14 @@ begin
   FExternalLibraries := TStringList.Create;
   FExternalLibraries.Duplicates := dupIgnore;  // Prevent duplicates
   FExternalLibraries.Sorted := True;  // Keep sorted
-  FExternalFunctions := TDictionary<string, TExternalFunctionInfo>.Create;
+  FExternalFunctions := nil;  // Will be set to shared dictionary by TNPCodeGen
   FLoopDepth := 0;
   FCurrentRoutineType := '';
   FCurrentReturnType := '';
   FForwardDeclarations := TList<string>.Create;
+  FCurrentSourceFile := '';
+  FCurrentSourceLine := 0;
+  FEmitLineDirectives := True;  // Default: enabled
   InitializeTypeMap;
   InitializeSupportedNodes;
 end;
@@ -333,7 +410,7 @@ end;
 destructor TNPCodeGenerator.Destroy;
 begin
   FForwardDeclarations.Free;
-  FExternalFunctions.Free;
+  // NOTE: FExternalFunctions is NOT freed here - it's owned by TNPCodeGen
   FExternalLibraries.Free;
   FVariableTypes.Free;
   FWithStack.Free;
@@ -545,6 +622,7 @@ end;
 function TNPCodeGenerator.TranslateType(const APasType: string): string;
 var
   LKey: string;
+  LBaseType: string;
 begin
   // Try case-sensitive lookup first
   if FTypeMap.TryGetValue(APasType, Result) then
@@ -558,6 +636,16 @@ begin
       Result := FTypeMap[LKey];
       Exit;
     end;
+  end;
+  
+  // Check if it's a pointer type (PTypeName)
+  if (Length(APasType) > 1) and (APasType[1] = 'P') and (UpCase(APasType[2]) = APasType[2]) then
+  begin
+    // Extract base type (everything after 'P')
+    LBaseType := Copy(APasType, 2, Length(APasType) - 1);
+    // Recursively translate the base type and add pointer
+    Result := TranslateType(LBaseType) + '*';
+    Exit;
   end;
   
   // Default: use the Pascal type name as-is (for custom types)
@@ -796,12 +884,34 @@ var
   LUnitName: string;
   LASTValue: TJSONValue;
   LASTArray: TJSONArray;
+  LHeadersValue: TJSONValue;
+  LHeadersArray: TJSONArray;
+  LUnitHeaders: TArray<string>;
+  LI: Integer;
 begin
   LUnitName := GetNodeAttribute(AUnitObj, 'name');
   if LUnitName = '' then
   begin
     FErrorManager.AddError(NP_ERROR_INVALID, 'Unit has no name');
     Exit;
+  end;
+  
+  // Extract headers for this specific unit from JSON
+  LHeadersValue := AUnitObj.GetValue('includeHeaders');
+  if LHeadersValue is TJSONArray then
+  begin
+    LHeadersArray := LHeadersValue as TJSONArray;
+    SetLength(LUnitHeaders, LHeadersArray.Count);
+    for LI := 0 to LHeadersArray.Count - 1 do
+      LUnitHeaders[LI] := LHeadersArray.Items[LI].Value;
+    
+    // Set headers for THIS unit only
+    SetIncludeHeaders(LUnitHeaders);
+  end
+  else
+  begin
+    // No headers for this unit - clear any previous headers
+    SetIncludeHeaders([]);
   end;
   
   LASTValue := AUnitObj.GetValue('ast');
@@ -913,12 +1023,14 @@ begin
   FOutputFolder := '';
   FCleanOutputFolder := False;
   FGenerator := nil;
+  FSharedExternalFunctions := TDictionary<string, TExternalFunctionInfo>.Create();
 end;
 
 destructor TNPCodeGen.Destroy;
 begin
   if FGenerator <> nil then
     FGenerator.Free;
+  FSharedExternalFunctions.Free();
   inherited;
 end;
 
@@ -933,7 +1045,7 @@ begin
     AErrorManager.AddError(NP_ERROR_INVALID, 'Output folder not set');
     Exit;
   end;
-  
+
   // Free previous generator if exists
   if FGenerator <> nil then
   begin
@@ -943,6 +1055,10 @@ begin
   
   LGenerator := TNPCodeGenerator.Create(FOutputFolder, FCleanOutputFolder, AErrorManager);
   try
+    // Share the external function registry across all file generations
+    LGenerator.SetExternalFunctionsDict(FSharedExternalFunctions);
+    LGenerator.SetIncludeHeaders(FIncludeHeaders);
+    
     FGenerator := LGenerator;  // Keep reference
     Result := LGenerator.Generate(AJSON);
   finally
@@ -1055,12 +1171,18 @@ end;
 
 function TNPCodeGenerator.IsExternalFunction(const AFuncName: string): Boolean;
 begin
+  if FExternalFunctions = nil then
+  begin
+    Result := False;
+    Exit;
+  end;
+
   Result := FExternalFunctions.ContainsKey(AFuncName);
 end;
 
 function TNPCodeGenerator.GetExternalFunctionInfo(const AFuncName: string): TExternalFunctionInfo;
 begin
-  if not FExternalFunctions.TryGetValue(AFuncName, Result) then
+  if (FExternalFunctions = nil) or (not FExternalFunctions.TryGetValue(AFuncName, Result)) then
   begin
     // Return empty record if not found
     Result.Name := '';
@@ -1071,6 +1193,9 @@ end;
 
 procedure TNPCodeGenerator.RegisterExternalFunction(const AFuncInfo: TExternalFunctionInfo);
 begin
+  if FExternalFunctions = nil then
+    Exit;  // Safety check
+  
   // Store external function info (overwrites if exists)
   FExternalFunctions.AddOrSetValue(AFuncInfo.Name, AFuncInfo);
 end;
@@ -1128,6 +1253,39 @@ procedure TNPCodeGenerator.AddForwardDeclaration(const AFuncName: string);
 begin
   if not FForwardDeclarations.Contains(AFuncName) then
     FForwardDeclarations.Add(AFuncName);
+end;
+
+{ SetExternalFunctionsDict }
+
+procedure TNPCodeGenerator.SetExternalFunctionsDict(ADict: TDictionary<string, TExternalFunctionInfo>);
+begin
+  FExternalFunctions := ADict;
+end;
+
+{ SetIncludeHeaders }
+
+procedure TNPCodeGenerator.SetIncludeHeaders(const AHeaders: TArray<string>);
+begin
+  FIncludeHeaders := AHeaders;
+end;
+
+function TNPCodeGenerator.GetIncludeHeaders(): TArray<string>;
+begin
+  Result := FIncludeHeaders;
+end;
+
+{ EmitLineDirective }
+
+procedure TNPCodeGenerator.EmitLineDirective(const ASourceFile: string; const ASourceLine: Integer);
+begin
+  if not FEmitLineDirectives then
+    Exit;
+  
+  if (ASourceLine > 0) and (ASourceFile <> '') then
+  begin
+    // Emit #line directive: #line <line> "<file>"
+    FOutput.AppendFormat('#line %d "%s"'#13#10, [ASourceLine, ASourceFile]);
+  end;
 end;
 
 end.

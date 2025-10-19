@@ -1,4 +1,17 @@
-﻿unit NitroPascal.BuildSettings;
+﻿{ ===============================================================================
+  NitroPascal - Modern Pascal • C Performance
+
+  Copyright © 2025-present tinyBigGAMES™ LLC
+  All Rights Reserved.
+
+  https://nitropascal.org
+
+  See LICENSE for license information
+===============================================================================}
+
+unit NitroPascal.BuildSettings;
+
+{$I NitroPascal.Defines.inc}
 
 interface
 
@@ -40,6 +53,7 @@ type
     FIncludePaths: TStringList;
     FLibraryPaths: TStringList;
     FLinkLibraries: TStringList;
+    FIncludeHeaders: TStringList;
 
     function IsValidIdentifier(const AValue: string): Boolean;
 
@@ -53,16 +67,19 @@ type
     procedure AddIncludePath(const APath: string);
     procedure AddLibraryPath(const APath: string);
     procedure AddLinkLibrary(const ALibrary: string);
+    procedure AddIncludeHeader(const AHeader: string);
 
     procedure ClearModulePaths();
     procedure ClearIncludePaths();
     procedure ClearLibraryPaths();
     procedure ClearLinkLibraries();
+    procedure ClearIncludeHeaders();
 
     function GetModulePaths(): TArray<string>;
     function GetIncludePaths(): TArray<string>;
     function GetLibraryPaths(): TArray<string>;
     function GetLinkLibraries(): TArray<string>;
+    function GetIncludeHeaders(): TArray<string>;
 
     procedure Reset();
     function ValidateAndNormalizeTarget(const ATarget: string): string;
@@ -92,6 +109,8 @@ begin
   FIncludePaths := TStringList.Create();
   FLibraryPaths := TStringList.Create();
   FLinkLibraries := TStringList.Create();
+  FIncludeHeaders := TStringList.Create();
+  FIncludeHeaders.Duplicates := dupIgnore;
 end;
 
 destructor TNPBuildSettings.Destroy();
@@ -100,6 +119,7 @@ begin
   FIncludePaths.Free();
   FLibraryPaths.Free();
   FLinkLibraries.Free();
+  FIncludeHeaders.Free();
   inherited;
 end;
 
@@ -205,6 +225,12 @@ begin
     FLinkLibraries.Add(ALibrary);
 end;
 
+procedure TNPBuildSettings.AddIncludeHeader(const AHeader: string);
+begin
+  if not FIncludeHeaders.Contains(AHeader) then
+    FIncludeHeaders.Add(AHeader);
+end;
+
 procedure TNPBuildSettings.ClearModulePaths();
 begin
   FModulePaths.Clear();
@@ -223,6 +249,11 @@ end;
 procedure TNPBuildSettings.ClearLinkLibraries();
 begin
   FLinkLibraries.Clear();
+end;
+
+procedure TNPBuildSettings.ClearIncludeHeaders();
+begin
+  FIncludeHeaders.Clear();
 end;
 
 function TNPBuildSettings.GetModulePaths(): TArray<string>;
@@ -245,6 +276,11 @@ begin
   Result := FLinkLibraries.ToStringArray();
 end;
 
+function TNPBuildSettings.GetIncludeHeaders(): TArray<string>;
+begin
+  Result := FIncludeHeaders.ToStringArray();
+end;
+
 procedure TNPBuildSettings.Reset();
 begin
   FTarget := '';
@@ -257,6 +293,7 @@ begin
   FIncludePaths.Clear();
   FLibraryPaths.Clear();
   FLinkLibraries.Clear();
+  FIncludeHeaders.Clear();
 end;
 
 end.

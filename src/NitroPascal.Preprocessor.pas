@@ -31,7 +31,7 @@ type
     FSourceFile: string;
     FLineNumber: Integer;
     
-    procedure ProcessDirective(const ADirective: string; const AValue: string);
+    procedure ProcessDirective(const ADirective: string; const AValue: string; const ATargetSettings: TNPBuildSettings);
     function ParseDirectiveLine(const ALine: string; out ADirective: string; out AValue: string): Boolean;
     function ParseOptimizationMode(const AValue: string): TNPOptimizeMode;
     function ParseBoolean(const AValue: string): Boolean;
@@ -41,7 +41,7 @@ type
   public
     constructor Create(const ACompiler: TNPCompiler);
     
-    function ProcessFile(const AFilename: string): Boolean;
+    function ProcessFile(const AFilename: string; const ABuildSettings: TNPBuildSettings = nil): Boolean;
   end;
 
 implementation
@@ -136,7 +136,7 @@ begin
     raise Exception.CreateFmt('Invalid boolean value: %s (expected on/off, true/false, yes/no, or 1/0)', [AValue]);
 end;
 
-procedure TNPPreprocessor.ProcessDirective(const ADirective: string; const AValue: string);
+procedure TNPPreprocessor.ProcessDirective(const ADirective: string; const AValue: string; const ATargetSettings: TNPBuildSettings);
 var
   LDir: string;
   LVal: string;
@@ -146,29 +146,86 @@ begin
   
   try
     if LDir = 'optimization' then
-      FCompiler.SetOptimize(ParseOptimizationMode(LVal))
+    begin
+      if FCompiler <> nil then
+        FCompiler.SetOptimize(ParseOptimizationMode(LVal))
+      else
+        ATargetSettings.Optimize := ParseOptimizationMode(LVal);
+    end
     else if LDir = 'target' then
-      FCompiler.SetTarget(LVal.Trim())
+    begin
+      if FCompiler <> nil then
+        FCompiler.SetTarget(LVal.Trim())
+      else
+        ATargetSettings.Target := ATargetSettings.ValidateAndNormalizeTarget(LVal.Trim());
+    end
     else if LDir = 'exceptions' then
-      FCompiler.SetEnableExceptions(ParseBoolean(LVal))
+    begin
+      if FCompiler <> nil then
+        FCompiler.SetEnableExceptions(ParseBoolean(LVal))
+      else
+        ATargetSettings.EnableExceptions := ParseBoolean(LVal);
+    end
     else if LDir = 'strip' then
-      FCompiler.SetStripSymbols(ParseBoolean(LVal))
+    begin
+      if FCompiler <> nil then
+        FCompiler.SetStripSymbols(ParseBoolean(LVal))
+      else
+        ATargetSettings.StripSymbols := ParseBoolean(LVal);
+    end
     else if LDir = 'include_path' then
-      FCompiler.AddIncludePath(LVal.Trim())
+    begin
+      if FCompiler <> nil then
+        FCompiler.AddIncludePath(LVal.Trim())
+      else
+        ATargetSettings.AddIncludePath(LVal.Trim());
+    end
     else if LDir = 'library_path' then
-      FCompiler.AddLibraryPath(LVal.Trim())
+    begin
+      if FCompiler <> nil then
+        FCompiler.AddLibraryPath(LVal.Trim())
+      else
+        ATargetSettings.AddLibraryPath(LVal.Trim());
+    end
     else if LDir = 'link' then
-      FCompiler.AddLinkLibrary(LVal.Trim())
-    else if LDir = 'module_path' then
-      FCompiler.AddModulePath(LVal.Trim())
+    begin
+      if FCompiler <> nil then
+        FCompiler.AddLinkLibrary(LVal.Trim())
+      else
+        ATargetSettings.AddLinkLibrary(LVal.Trim());
+    end
+    else if LDir = 'unit_path' then
+    begin
+      if FCompiler <> nil then
+        FCompiler.AddModulePath(LVal.Trim())
+      else
+        ATargetSettings.AddModulePath(LVal.Trim());
+    end
     else if LDir = 'apptype' then
     begin
       if LVal.ToLower() = 'console' then
-        FCompiler.SetAppType(atConsole)
+      begin
+        if FCompiler <> nil then
+          FCompiler.SetAppType(atConsole)
+        else
+          ATargetSettings.AppType := atConsole;
+      end
       else if LVal.ToLower() = 'gui' then
-        FCompiler.SetAppType(atGUI)
+      begin
+        if FCompiler <> nil then
+          FCompiler.SetAppType(atGUI)
+        else
+          ATargetSettings.AppType := atGUI;
+      end
       else
         raise Exception.CreateFmt('Invalid APPTYPE value: %s (expected CONSOLE or GUI)', [LVal]);
+    end
+    else if LDir = 'include_header' then
+    begin
+      if FCompiler <> nil then
+        FCompiler.AddIncludeHeader(LVal.Trim())
+      else
+        ATargetSettings.AddIncludeHeader(LVal.Trim());
     end
     else
     begin
@@ -176,7 +233,8 @@ begin
       if not IsConditionalDirective(ADirective) then
       begin
         // Unknown directive - warn only if not conditional
-        FCompiler.PrintLn('Warning: Unknown compiler directive {$%s} at line %d', [ADirective, FLineNumber]);
+        if FCompiler <> nil then
+          FCompiler.PrintLn('Warning: Unknown compiler directive {$%s} at line %d', [ADirective, FLineNumber]);
       end;
       // If it IS conditional, silently ignore (DelphiAST handles it)
     end;
@@ -231,18 +289,30 @@ begin
   Result := not ADirective.IsEmpty;
 end;
 
-function TNPPreprocessor.ProcessFile(const AFilename: string): Boolean;
+function TNPPreprocessor.ProcessFile(const AFilename: string; const ABuildSettings: TNPBuildSettings = nil): Boolean;
 var
   LLines: TStringList;
   LLine: string;
   LDirective: string;
   LValue: string;
+  LTargetSettings: TNPBuildSettings;
 begin
   Result := False;
   FSourceFile := AFilename;
   
   if not TFile.Exists(AFilename) then
     Exit;
+  
+  // Determine which BuildSettings to use
+  if ABuildSettings <> nil then
+    LTargetSettings := ABuildSettings
+  else if FCompiler <> nil then
+    LTargetSettings := FCompiler.BuildSettings
+  else
+  begin
+    // No BuildSettings available - cannot process directives
+    Exit(False);
+  end;
   
   try
     LLines := TStringList.Create();
@@ -256,7 +326,7 @@ begin
         
         if ParseDirectiveLine(LLine, LDirective, LValue) then
         begin
-          ProcessDirective(LDirective, LValue);
+          ProcessDirective(LDirective, LValue, LTargetSettings);
         end;
       end;
       
@@ -268,7 +338,8 @@ begin
     on E: Exception do
     begin
       // Log error and return false
-      FCompiler.PrintLn('Preprocessor error: %s', [E.Message]);
+      if FCompiler <> nil then
+        FCompiler.PrintLn('Preprocessor error: %s', [E.Message]);
       Result := False;
     end;
   end;

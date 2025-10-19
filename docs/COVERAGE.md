@@ -171,7 +171,7 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [ ] Inline functions
 - [ ] Nested functions
 - [ ] Anonymous functions
-- [ ] Function pointers (procedural types)
+- [x] Function pointers (procedural types)
 - [ ] Function return in parameter (out)
 
 ## Arrays - Static
@@ -263,7 +263,7 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [x] GetMem function
 - [x] FreeMem procedure
 - [x] ReallocMem function
-- [ ] AllocMem function
+- [x] AllocMem function
 
 ## Classes
 - [ ] Class declarations
@@ -358,7 +358,16 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [ ] AnsiCompareText(S1, S2)
 - [x] QuotedStr(S)
 - [ ] AnsiQuotedStr(S, Quote)
-- [ ] StringOfChar(Ch, Count)
+- [x] StringOfChar(Ch, Count)
+- [x] UniqueString(S)
+- [x] SetString(S, Buffer, Len)
+- [x] Val(S, V, Code)
+- [x] Str(X, S)
+- [x] UpCase(Ch)
+- [x] WideCharLen(S)
+- [x] WideCharToString(S)
+- [x] StringToWideChar(S, Buf, BufSize)
+- [x] WideCharToStrVar(S, Dest)
 - [ ] WrapText(S, MaxCol)
 
 ## Math Functions
@@ -371,16 +380,25 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [x] ArcSin(X)
 - [x] ArcCos(X)
 - [x] ArcTan(X)
-- [ ] Ln(X)
-- [ ] Exp(X)
-- [ ] Power(Base, Exponent)
+- [x] Ln(X)
+- [x] Exp(X)
+- [x] Power(Base, Exponent)
 - [x] Round(X)
 - [x] Trunc(X)
-- [ ] Int(X)
-- [ ] Frac(X)
+- [x] Int(X)
+- [x] Frac(X)
 - [x] Ceil(X)
 - [x] Floor(X)
-- [ ] Pi constant
+- [x] Pi constant
+- [x] Sinh(X)
+- [x] Cosh(X)
+- [x] Tanh(X)
+- [x] ArcSinh(X)
+- [x] ArcCosh(X)
+- [x] ArcTanh(X)
+- [x] Log10(X)
+- [x] Log2(X)
+- [x] LogN(Base, X)
 - [x] Max(A, B)
 - [x] Min(A, B)
 - [x] Random
@@ -408,6 +426,8 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [x] Dec(X, N)
 - [x] Low(X)
 - [x] High(X)
+- [x] Odd(X)
+- [x] Swap(X)
 
 ## Memory Functions
 - [x] New(P)
@@ -418,7 +438,9 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [ ] AllocMem(Size)
 - [x] FillChar(Dest, Count, Value)
 - [x] Move(Source, Dest, Count)
-- [ ] FillByte(Dest, Count, Value)
+- [x] FillByte(Dest, Count, Value)
+- [x] FillWord(Dest, Count, Value)
+- [x] FillDWord(Dest, Count, Value)
 - [ ] MoveChars(Source, Dest, Count)
 
 ## I/O Functions - Console
@@ -443,7 +465,7 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [x] Rewrite(F)
 - [x] Append(F)
 - [x] Close(F)
-- [ ] Read(F, Var)
+- [x] Read(F, Var)
 - [x] ReadLn(F, Var)
 - [x] Write(F, Data)
 - [x] WriteLn(F, Data)
@@ -453,10 +475,14 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [x] FilePos(F)
 - [x] FileSize(F)
 - [x] Eof(F)
-- [ ] Eoln(F)
-- [ ] Erase(F)
-- [ ] Rename(F, NewName)
-- [ ] IOResult
+- [x] Eoln(F)
+- [x] SeekEof(F)
+- [x] SeekEoln(F)
+- [x] Flush(F)
+- [x] Truncate(F)
+- [x] Erase(F)
+- [x] Rename(F, NewName)
+- [x] IOResult
 
 ## File Management
 - [x] FileExists(FileName)
@@ -507,6 +533,7 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [x] {$link library}
 - [x] {$module_path path}
 - [x] {$apptype console|gui}
+- [x] {$include_header 'filename'}
 - [ ] {$define symbol}
 - [ ] {$undef symbol}
 - [x] {$ifdef symbol}
@@ -724,7 +751,8 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [ ] SetEnvironmentVariable procedure
 - [ ] ExitCode variable
 - [x] Halt procedure
-- [ ] RunError procedure
+- [x] RunError procedure
+- [x] Abort procedure
 - [ ] GetTickCount function
 - [ ] Sleep procedure
 
@@ -737,8 +765,8 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [ ] Comment preservation
 - [ ] Pragma once guards
 - [ ] Include guard defines
-- [ ] Line number directives (#line)
-- [ ] Source position tracking
+- [x] Line number directives (#line)
+- [x] Source position tracking
 - [ ] Debug information generation
 
 ## Build System
@@ -844,18 +872,27 @@ This document tracks all language features planned for NitroPascal. Each feature
 - [x] ArcSin
 - [x] ArcCos
 - [x] ArcTan
-- [ ] ArcTan2
-- [ ] Ln
-- [ ] Exp
-- [ ] Power
+- [x] ArcTan2
+- [x] Ln
+- [x] Exp
+- [x] Power
 - [ ] IntPower
 - [x] Round
 - [ ] RoundTo
 - [x] Trunc
-- [ ] Int
-- [ ] Frac
+- [x] Int
+- [x] Frac
 - [x] Ceil
 - [x] Floor
+- [x] Sinh(X)
+- [x] Cosh(X)
+- [x] Tanh(X)
+- [x] ArcSinh(X)
+- [x] ArcCosh(X)
+- [x] ArcTanh(X)
+- [x] Log10(X)
+- [x] Log2(X)
+- [x] LogN(Base, X)
 - [x] Max
 - [x] Min
 - [ ] MaxValue

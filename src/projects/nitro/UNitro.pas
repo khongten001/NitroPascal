@@ -68,14 +68,15 @@ begin
   TNPUtils.PrintLn(COLOR_BOLD + 'COMMANDS:' + COLOR_RESET);
   TNPUtils.PrintLn('  ' + COLOR_GREEN + 'init' + COLOR_RESET + ' <n> [--template <type>]');
   TNPUtils.PrintLn('                   Create a new NitroPascal project');
-  TNPUtils.PrintLn('                   Templates: program (default), library, unit');
-  TNPUtils.PrintLn('  ' + COLOR_GREEN + 'build' + COLOR_RESET + '          Compile Pascal source to C++ and build executable');
-  TNPUtils.PrintLn('  ' + COLOR_GREEN + 'run' + COLOR_RESET + '            Execute the compiled program');
-  TNPUtils.PrintLn('  ' + COLOR_GREEN + 'clean' + COLOR_RESET + '          Remove all generated files');
-  TNPUtils.PrintLn('  ' + COLOR_GREEN + 'convert-header' + COLOR_RESET + ' <input.h> [options]');
-  TNPUtils.PrintLn('                   Convert C header file to Pascal unit');
-  TNPUtils.PrintLn('  ' + COLOR_GREEN + 'version' + COLOR_RESET + '        Display version information');
-  TNPUtils.PrintLn('  ' + COLOR_GREEN + 'help' + COLOR_RESET + '           Display this help message');
+  TNPUtils.PrintLn('                     Templates: program (default), library, unit');
+  TNPUtils.PrintLn('  ' + COLOR_GREEN + 'build' + COLOR_RESET + '            Compile Pascal source to C++ and build executable');
+  TNPUtils.PrintLn('  ' + COLOR_GREEN + 'run' + COLOR_RESET + '              Execute the compiled program');
+  TNPUtils.PrintLn('  ' + COLOR_GREEN + 'clean' + COLOR_RESET + '            Remove all generated files');
+  TNPUtils.PrintLn('  ' + COLOR_GREEN + 'convert-header' + COLOR_RESET + '   <input.h> [options]');
+  TNPUtils.PrintLn('                     Convert C header file to Pascal unit');
+  TNPUtils.PrintLn('  ' + COLOR_GREEN + 'zig' + COLOR_RESET + ' <args>       Pass arguments directly to Zig compiler');
+  TNPUtils.PrintLn('  ' + COLOR_GREEN + 'version' + COLOR_RESET + '          Display version information');
+  TNPUtils.PrintLn('  ' + COLOR_GREEN + 'help' + COLOR_RESET + '             Display this help message');
   TNPUtils.PrintLn('');
 
   TNPUtils.PrintLn(COLOR_BOLD + 'OPTIONS:' + COLOR_RESET);
@@ -85,20 +86,21 @@ begin
   TNPUtils.PrintLn('');
 
   TNPUtils.PrintLn(COLOR_BOLD + 'TEMPLATE TYPES:' + COLOR_RESET);
-  TNPUtils.PrintLn('  ' + COLOR_CYAN + 'program' + COLOR_RESET + '        Executable program (default)');
-  TNPUtils.PrintLn('  ' + COLOR_CYAN + 'library' + COLOR_RESET + '        Shared library (.dll on Windows, .so on Linux)');
-  TNPUtils.PrintLn('  ' + COLOR_CYAN + 'unit' + COLOR_RESET + '           Static library (.lib on Windows, .a on Linux)');
+  TNPUtils.PrintLn('  ' + COLOR_CYAN + 'program' + COLOR_RESET + '          Executable program (default)');
+  TNPUtils.PrintLn('  ' + COLOR_CYAN + 'library' + COLOR_RESET + '          Shared library (.dll on Windows, .so on Linux)');
+  TNPUtils.PrintLn('  ' + COLOR_CYAN + 'unit' + COLOR_RESET + '             Static library (.lib on Windows, .a on Linux)');
   TNPUtils.PrintLn('');
 
   TNPUtils.PrintLn(COLOR_BOLD + 'EXAMPLES:' + COLOR_RESET);
-  TNPUtils.PrintLn('  ' + COLOR_CYAN + 'nitro init MyGame' + COLOR_RESET + '                Create a program project');
-  TNPUtils.PrintLn('  ' + COLOR_CYAN + 'nitro init MyLib --template library' + COLOR_RESET);
-  TNPUtils.PrintLn('                                    Create a shared library project');
-  TNPUtils.PrintLn('  ' + COLOR_CYAN + 'nitro build' + COLOR_RESET + '                      Build the current project');
-  TNPUtils.PrintLn('  ' + COLOR_CYAN + 'nitro run' + COLOR_RESET + '                        Run the compiled executable');
+  TNPUtils.PrintLn('  ' + COLOR_CYAN + 'nitro init MyGame' + COLOR_RESET + '                   - Create a program project');
+  TNPUtils.PrintLn('  ' + COLOR_CYAN + 'nitro init MyLib --template library' + COLOR_RESET + ' - Create a shared library project');
+  TNPUtils.PrintLn('  ' + COLOR_CYAN + 'nitro build' + COLOR_RESET + '                         - Build the current project');
+  TNPUtils.PrintLn('  ' + COLOR_CYAN + 'nitro run' + COLOR_RESET + '                           - Run the compiled executable');
+  TNPUtils.PrintLn('  ' + COLOR_CYAN + 'nitro zig cc -c myfile.c' + COLOR_RESET + '            - Compile C file with Zig');
   TNPUtils.PrintLn('');
 
-  TNPUtils.PrintLn('For more information, visit: ' + COLOR_BLUE + 'https://github.com/tinyBigGAMES/NitroPascal' + COLOR_RESET);
+  TNPUtils.PrintLn('For more information, visit:');
+  TNPUtils.PrintLn(COLOR_BLUE + '  https://github.com/tinyBigGAMES/NitroPascal' + COLOR_RESET);
   TNPUtils.PrintLn('');
 end;
 
@@ -182,9 +184,10 @@ begin
   TNPUtils.PrintLn('');
   try
     GCompiler.Build();
+    //TNPUtils.PrintLn('');
     TNPUtils.PrintLn('');
     TNPUtils.PrintLn(COLOR_GREEN + COLOR_BOLD + '✓ Build completed successfully!' + COLOR_RESET);
-    TNPUtils.PrintLn('');
+    //TNPUtils.PrintLn('');
   except
     on E: Exception do
     begin
@@ -305,6 +308,51 @@ begin
   end;
 end;
 
+procedure CommandZig();
+var
+  LArgs: string;
+  LI: Integer;
+begin
+  // Collect all parameters after "zig" command
+  LArgs := '';
+  for LI := 2 to ParamCount do
+  begin
+    if LI > 2 then
+      LArgs := LArgs + ' ';
+    LArgs := LArgs + ParamStr(LI);
+  end;
+
+  if LArgs.Trim().IsEmpty then
+  begin
+    TNPUtils.PrintLn(COLOR_RED + 'Error: ' + COLOR_RESET + 'Zig command requires arguments');
+    TNPUtils.PrintLn('');
+    TNPUtils.PrintLn('Usage: ' + COLOR_CYAN + 'nitro zig <zig-args>' + COLOR_RESET);
+    TNPUtils.PrintLn('');
+    TNPUtils.PrintLn('Examples:');
+    TNPUtils.PrintLn('  nitro zig version');
+    TNPUtils.PrintLn('  nitro zig build --help');
+    TNPUtils.PrintLn('  nitro zig cc -c myfile.c -o myfile.o');
+    TNPUtils.PrintLn('  nitro zig c++ -c myfile.cpp -o myfile.o');
+    TNPUtils.PrintLn('');
+    ExitCode := 2;
+    Exit;
+  end;
+
+  TNPUtils.PrintLn('');
+  try
+    GCompiler.Zig(LArgs);
+    TNPUtils.PrintLn('');
+  except
+    on E: Exception do
+    begin
+      TNPUtils.PrintLn('');
+      TNPUtils.PrintLn(COLOR_RED + 'Error: ' + COLOR_RESET + E.Message);
+      TNPUtils.PrintLn('');
+      ExitCode := 1;
+    end;
+  end;
+end;
+
 procedure ProcessCommand();
 var
   LCommand: string;
@@ -341,6 +389,8 @@ begin
     CommandClean()
   else if LCommand = 'convert-header' then
     CommandConvertHeader()
+  else if LCommand = 'zig' then
+    CommandZig()
   else
   begin
     TNPUtils.PrintLn('');

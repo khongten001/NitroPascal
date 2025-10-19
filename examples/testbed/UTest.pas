@@ -65,6 +65,7 @@ type
     FPassedCount: Integer;
     FFailedCount: Integer;
     FTotalCount: Integer;
+    FFailedTests: TList<string>;
 
     // UI helpers
     function  DetectProjectType(const AFilename: string): TNPTemplate;
@@ -184,6 +185,7 @@ procedure TTest.CleanProjectFolder(const AProjectDir: string);
 begin
   if TDirectory.Exists(AProjectDir) then
   begin
+    TNPUtils.PrintLn();
     TNPUtils.PrintLn('=== CLEANING PROJECT ===');
     TDirectory.Delete(AProjectDir, True);
     TNPUtils.PrintLn('✓ Removed project folder');
@@ -195,8 +197,9 @@ constructor TTest.Create;
 begin
   inherited Create;
   FTests := TList<TTestEntry>.Create();
+  FFailedTests := TList<string>.Create();
   FTestPath := '..\src\tests\src';
-  FProjectDir := '.\projects';
+  FProjectDir := '.\tests';
 
   // Initialize CLI flags
   FForceClean := False;
@@ -215,6 +218,7 @@ end;
 destructor TTest.Destroy;
 begin
   FTests.Free();
+  FFailedTests.Free();
   inherited;
 end;
 
@@ -563,6 +567,7 @@ begin
       TNPUtils.PrintLn('      %s✗ FAILED%s (%.1fs)', [COLOR_RED, COLOR_RESET, LElapsed]);
       TNPUtils.PrintLn('      Error: %s', [E.Message]);
       Inc(FFailedCount);
+      FFailedTests.Add(Format('[%.3d] %s', [AEntry.Number, TPath.GetFileName(AEntry.ProjectSrc)]));
     end;
   end;
 
@@ -640,7 +645,7 @@ begin
       begin
         // Build() already called PrintErrors() before raising exception
         TNPUtils.PrintLn('✗ Compilation failed');
-        // Continue to show what was generated (partial results)
+        raise;  // Re-raise so ExecuteTestInternal can mark test as failed
       end;
     end;
     TNPUtils.PrintLn('');
@@ -694,6 +699,7 @@ begin
   FPassedCount := 0;
   FFailedCount := 0;
   FTotalCount := 0;
+  FFailedTests.Clear();
 
   ExecuteTest(ANum);
 end;
@@ -701,10 +707,12 @@ end;
 procedure TTest.Test(const ANumbers: TArray<Integer>);
 var
   LNum: Integer;
+  LFailedTest: string;
 begin
   FPassedCount := 0;
   FFailedCount := 0;
   FTotalCount := 0;
+  FFailedTests.Clear();
 
   if Length(ANumbers) = 0 then
     Exit;
@@ -724,6 +732,14 @@ begin
     '%d total',
     [FPassedCount, FFailedCount, FTotalCount]);
   TNPUtils.PrintLn('');
+
+  if FFailedCount > 0 then
+  begin
+    TNPUtils.PrintLn(COLOR_RED + COLOR_BOLD + 'FAILED TESTS:' + COLOR_RESET);
+    for LFailedTest in FFailedTests do
+      TNPUtils.PrintLn('  %s', [LFailedTest]);
+    TNPUtils.PrintLn('');
+  end;
 end;
 
 procedure TTest.Run;

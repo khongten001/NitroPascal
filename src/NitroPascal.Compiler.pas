@@ -29,6 +29,7 @@ uses
 
 type
 
+  { TNPCompilerOutputCallback }
   TNPCompilerOutputCallback = reference to procedure(const AText: string; const AUserData: Pointer);
 
   { TNPCompiler }
@@ -43,6 +44,8 @@ type
     
     function DetectTemplateTypeFromSource(const AFilename: string): TNPTemplate;
     procedure UpdateBuildZig();
+    procedure CollectLinkLibrariesFromJSON(const AJSONData: string);
+    procedure CollectPathsFromJSON(const AJSONData: string);
     
   public
     constructor Create();
@@ -73,6 +76,7 @@ type
     procedure Clean();
     procedure ConvertCHeader(const AInputFile: string; const AOutputFile: string; 
       const ALibraryName: string; const AConvention: string);
+    procedure Zig(const AArgs: string);
     
     // Build configuration methods
     procedure SetTarget(const ATarget: string);
@@ -85,6 +89,7 @@ type
     procedure AddIncludePath(const APath: string);
     procedure AddLibraryPath(const APath: string);
     procedure AddLinkLibrary(const ALibrary: string);
+    procedure AddIncludeHeader(const AHeader: string);
     
     procedure ClearModulePaths();
     procedure ClearIncludePaths();
@@ -92,11 +97,14 @@ type
     procedure ClearLinkLibraries();
     
     procedure ResetBuildSettings();
+    
+    property BuildSettings: TNPBuildSettings read FBuildSettings;
   end;
 
 implementation
 
 uses
+  System.JSON,
   NitroPascal.Preprocessor;
 
 const
@@ -158,7 +166,155 @@ const
 
 { TNPCompiler }
 
+procedure TNPCompiler.CollectLinkLibrariesFromJSON(const AJSONData: string);
+var
+  LJSONValue: TJSONValue;
+  LJSONRoot: TJSONObject;
+  LUnitsArray: TJSONArray;
+  LI: Integer;
+  LJ: Integer;
+  LUnitObj: TJSONObject;
+  LLinksArray: TJSONArray;
+  LLinkValue: TJSONValue;
+  LLinkStr: string;
+begin
+  // Parse the JSON to extract linkLibraries from all units
+  LJSONValue := TJSONObject.ParseJSONValue(AJSONData);
+  if LJSONValue = nil then
+    Exit;
+  
+  try
+    if not (LJSONValue is TJSONObject) then
+      Exit;
+    
+    LJSONRoot := LJSONValue as TJSONObject;
+    
+    // Get the "units" array
+    if not LJSONRoot.TryGetValue<TJSONArray>('units', LUnitsArray) then
+      Exit;
+    
+    // Iterate through all units
+    for LI := 0 to LUnitsArray.Count - 1 do
+    begin
+      if not (LUnitsArray.Items[LI] is TJSONObject) then
+        Continue;
+      
+      LUnitObj := LUnitsArray.Items[LI] as TJSONObject;
+      
+      // Get the "linkLibraries" array if it exists
+      if LUnitObj.TryGetValue<TJSONArray>('linkLibraries', LLinksArray) then
+      begin
+        // Add each link library to build settings
+        for LJ := 0 to LLinksArray.Count - 1 do
+        begin
+          LLinkValue := LLinksArray.Items[LJ];
+          if LLinkValue is TJSONString then
+          begin
+            LLinkStr := (LLinkValue as TJSONString).Value;
+            AddLinkLibrary(LLinkStr);
+          end;
+        end;
+      end;
+    end;
+    
+  finally
+    LJSONValue.Free();
+  end;
+end;
+
+procedure TNPCompiler.CollectPathsFromJSON(const AJSONData: string);
+var
+  LJSONValue: TJSONValue;
+  LJSONRoot: TJSONObject;
+  LUnitsArray: TJSONArray;
+  LI: Integer;
+  LJ: Integer;
+  LUnitObj: TJSONObject;
+  LModulePathsArray: TJSONArray;
+  LIncludePathsArray: TJSONArray;
+  LLibraryPathsArray: TJSONArray;
+  LPathValue: TJSONValue;
+  LPathStr: string;
+begin
+  // Parse the JSON to extract paths from all units
+  LJSONValue := TJSONObject.ParseJSONValue(AJSONData);
+  if LJSONValue = nil then
+    Exit;
+  
+  try
+    if not (LJSONValue is TJSONObject) then
+      Exit;
+    
+    LJSONRoot := LJSONValue as TJSONObject;
+    
+    // Get the "units" array
+    if not LJSONRoot.TryGetValue<TJSONArray>('units', LUnitsArray) then
+      Exit;
+    
+    // Iterate through all units
+    for LI := 0 to LUnitsArray.Count - 1 do
+    begin
+      if not (LUnitsArray.Items[LI] is TJSONObject) then
+        Continue;
+      
+      LUnitObj := LUnitsArray.Items[LI] as TJSONObject;
+      
+      // Get the "modulePaths" array if it exists
+      if LUnitObj.TryGetValue<TJSONArray>('modulePaths', LModulePathsArray) then
+      begin
+        // Add each module path to build settings
+        for LJ := 0 to LModulePathsArray.Count - 1 do
+        begin
+          LPathValue := LModulePathsArray.Items[LJ];
+          if LPathValue is TJSONString then
+          begin
+            LPathStr := (LPathValue as TJSONString).Value;
+            AddModulePath(LPathStr);
+          end;
+        end;
+      end;
+      
+      // Get the "includePaths" array if it exists
+      if LUnitObj.TryGetValue<TJSONArray>('includePaths', LIncludePathsArray) then
+      begin
+        // Add each include path to build settings
+        for LJ := 0 to LIncludePathsArray.Count - 1 do
+        begin
+          LPathValue := LIncludePathsArray.Items[LJ];
+          if LPathValue is TJSONString then
+          begin
+            LPathStr := (LPathValue as TJSONString).Value;
+            AddIncludePath(LPathStr);
+          end;
+        end;
+      end;
+      
+      // Get the "libraryPaths" array if it exists
+      if LUnitObj.TryGetValue<TJSONArray>('libraryPaths', LLibraryPathsArray) then
+      begin
+        // Add each library path to build settings
+        for LJ := 0 to LLibraryPathsArray.Count - 1 do
+        begin
+          LPathValue := LLibraryPathsArray.Items[LJ];
+          if LPathValue is TJSONString then
+          begin
+            LPathStr := (LPathValue as TJSONString).Value;
+            AddLibraryPath(LPathStr);
+          end;
+        end;
+      end;
+    end;
+    
+  finally
+    LJSONValue.Free();
+  end;
+end;
+
 constructor TNPCompiler.Create();
+var
+  LExeDir: string;
+  LStdLibPath: string;
+  LRaylibPath: string;
 begin
   inherited Create();
   FErrorManager := TNPErrorManager.Create();
@@ -166,6 +322,16 @@ begin
   FProjectDir := '';
   FBuildSettings := TNPBuildSettings.Create();
   FTemplateType := tpProgram;
+  
+  // Add default unit search paths relative to executable
+  LExeDir := TPath.GetDirectoryName(ParamStr(0));
+  LStdLibPath := TPath.Combine(LExeDir, 'res' + PathDelim + 'libs' + PathDelim + 'std');
+  LRaylibPath := TPath.Combine(LExeDir, 'res' + PathDelim + 'libs' + PathDelim + 'raylib' + PathDelim + 'pas');
+  
+  if TDirectory.Exists(LStdLibPath) then
+    AddModulePath(LStdLibPath);
+  if TDirectory.Exists(LRaylibPath) then
+    AddModulePath(LRaylibPath);
 end;
 
 destructor TNPCompiler.Destroy();
@@ -215,6 +381,10 @@ var
   LJSONData: string;
   LJSONPath: string;
   LGeneratedDir: string;
+  LSearchPaths: TStringList;
+  LModulePath: string;
+  LExternalLibs: TArray<string>;
+  LLib: string;
 begin
   Result := False;
   FErrorManager.ClearErrors();
@@ -248,7 +418,33 @@ begin
     // Phase 1: Parse Pascal to JSON
     LParser := TNPPasToJSON.Create();
     try
-      LParser.SearchPath := TPath.GetDirectoryName(AFilename);
+      // Build search path: current directory + all module paths
+      LSearchPaths := TStringList.Create();
+      try
+        // Add current file directory first
+        LSearchPaths.Add(TPath.GetDirectoryName(AFilename));
+        
+        // Add all module paths from compiler directives
+        for LModulePath in FBuildSettings.GetModulePaths() do
+        begin
+          // Make paths absolute relative to project directory
+          if not TPath.IsPathRooted(LModulePath) then
+          begin
+            if not FProjectDir.IsEmpty then
+              LSearchPaths.Add(TPath.GetFullPath(TPath.Combine(FProjectDir, LModulePath)))
+            else
+              LSearchPaths.Add(TPath.GetFullPath(TPath.Combine(TPath.GetDirectoryName(AFilename), LModulePath)));
+          end
+          else
+            LSearchPaths.Add(LModulePath);
+        end;
+        
+        // Combine all paths with semicolon separator for DelphiAST
+        LParser.SearchPath := string.Join(';', LSearchPaths.ToStringArray());
+      finally
+        LSearchPaths.Free();
+      end;
+      
       LParser.Formatted := True;
       
       // Setup compiler defines before parsing
@@ -263,7 +459,11 @@ begin
       // Save JSON to generated folder
       LJSONPath := TPath.Combine(LGeneratedDir, TPath.GetFileNameWithoutExtension(AFilename) + '.json');
       TFile.WriteAllText(LJSONPath, LJSONData);
-      
+
+      // Phase 1.5: Collect link libraries and paths from all units in the JSON
+      CollectLinkLibrariesFromJSON(LJSONData);
+      CollectPathsFromJSON(LJSONData);
+
     finally
       LParser.Free();
     end;
@@ -273,13 +473,13 @@ begin
     try
       LCodeGen.OutputFolder := LGeneratedDir;
       LCodeGen.CleanOutputFolder := False;
+      LCodeGen.IncludeHeaders := FBuildSettings.GetIncludeHeaders();
       
       if not LCodeGen.GenerateFromFile(LJSONPath, FErrorManager) then
         Exit;
       
       // Phase 2.5: Collect external libraries and add to build settings
-      var LExternalLibs := LCodeGen.GetExternalLibraries();
-      var LLib: string;
+      LExternalLibs := LCodeGen.GetExternalLibraries();
       for LLib in LExternalLibs do
         AddLinkLibrary(LLib);
       
@@ -375,6 +575,9 @@ var
   LFiles: TArray<string>;
   LFile: string;
   LGeneratedDir: string;
+  LLibraryPaths: TArray<string>;
+  LLibName: string;
+  
 begin
   LBuilder := TStringBuilder.Create();
   try
@@ -385,6 +588,9 @@ begin
       omReleaseFast:  LOptimizeMode := 'ReleaseFast';
       omReleaseSmall: LOptimizeMode := 'ReleaseSmall';
     end;
+
+    // Get library paths once for reuse
+    LLibraryPaths := FBuildSettings.GetLibraryPaths();
 
     // Header
     LBuilder.AppendLine('const std = @import("std");');
@@ -544,7 +750,7 @@ begin
     case FTemplateType of
       tpProgram:
         begin
-          for LPath in FBuildSettings.GetLibraryPaths() do
+          for LPath in LLibraryPaths do
           begin
             LBuilder.AppendLine('    exe.addLibraryPath(b.path("' + 
               FBuildSettings.NormalizePath(LPath) + '"));');
@@ -552,14 +758,14 @@ begin
         end;
       tpLibrary, tpUnit:
         begin
-          for LPath in FBuildSettings.GetLibraryPaths() do
+          for LPath in LLibraryPaths do
           begin
             LBuilder.AppendLine('    lib.addLibraryPath(b.path("' + 
               FBuildSettings.NormalizePath(LPath) + '"));');
           end;
         end;
     end;
-    if Length(FBuildSettings.GetLibraryPaths()) > 0 then
+    if Length(LLibraryPaths) > 0 then
       LBuilder.AppendLine('');
     
     // Link libraries
@@ -568,14 +774,44 @@ begin
         begin
           for LLibrary in FBuildSettings.GetLinkLibraries() do
           begin
-            LBuilder.AppendLine('    exe.linkSystemLibrary("' + LLibrary + '");');
+            // Check if this is a static library file (.lib or .a extension)
+            if LLibrary.EndsWith('.lib', True) or LLibrary.EndsWith('.a', True) then
+            begin
+              // Static library file - strip extension and use linkSystemLibrary
+              // Zig will search through all addLibraryPath() entries to find it
+              LLibName := TPath.GetFileNameWithoutExtension(LLibrary);
+              // Remove 'lib' prefix if present (e.g., libraylib.a -> raylib)
+              if LLibName.StartsWith('lib', True) then
+                LLibName := LLibName.Substring(3);
+              LBuilder.AppendLine('    exe.linkSystemLibrary("' + LLibName + '");');
+            end
+            else
+            begin
+              // System library - use linkSystemLibrary
+              LBuilder.AppendLine('    exe.linkSystemLibrary("' + LLibrary + '");');
+            end;
           end;
         end;
       tpLibrary, tpUnit:
         begin
           for LLibrary in FBuildSettings.GetLinkLibraries() do
           begin
-            LBuilder.AppendLine('    lib.linkSystemLibrary("' + LLibrary + '");');
+            // Check if this is a static library file (.lib or .a extension)
+            if LLibrary.EndsWith('.lib', True) or LLibrary.EndsWith('.a', True) then
+            begin
+              // Static library file - strip extension and use linkSystemLibrary
+              // Zig will search through all addLibraryPath() entries to find it
+              LLibName := TPath.GetFileNameWithoutExtension(LLibrary);
+              // Remove 'lib' prefix if present (e.g., libraylib.a -> raylib)
+              if LLibName.StartsWith('lib', True) then
+                LLibName := LLibName.Substring(3);
+              LBuilder.AppendLine('    lib.linkSystemLibrary("' + LLibName + '");');
+            end
+            else
+            begin
+              // System library - use linkSystemLibrary
+              LBuilder.AppendLine('    lib.linkSystemLibrary("' + LLibrary + '");');
+            end;
           end;
         end;
     end;
@@ -727,6 +963,23 @@ begin
   PrintLn('  nitro run');
 end;
 
+  function RemoveBracketContent(const AText: string): string;
+  var
+    LStart, LEnd: Integer;
+  begin
+    Result := AText;
+    LStart := Pos('[', Result);
+    while LStart > 0 do
+    begin
+      LEnd := Pos(']', Result);
+      if (LEnd > LStart) then
+        Delete(Result, LStart, LEnd - LStart + 1)
+      else
+        Break;
+      LStart := Pos('[', Result);
+    end;
+  end;
+
 procedure TNPCompiler.Build(const ACompileOnly: Boolean);
 var
   LMainPasPath: string;
@@ -766,7 +1019,7 @@ begin
   
   PrintLn('Entry point: ' + LEntryPointName);
   PrintLn('Compiling NitroPascal to C++...');
-  PrintLn('');
+  //PrintLn('');
   
   // Phase 1: Transpile Pascal → C++
   if not CompileFromFile(LMainPasPath) then
@@ -776,7 +1029,7 @@ begin
   end;
 
   PrintLn('✓ Transpilation complete');
-  PrintLn('');
+  //PrintLn('');
 
   // Exit if compile only
   if ACompileOnly then
@@ -784,15 +1037,15 @@ begin
 
   // Phase 2: Detect template type from source
   FTemplateType := DetectTemplateTypeFromSource(LMainPasPath);
-  
+
   // Phase 3: Update build.zig with generated files
   UpdateBuildZig();
   PrintLn('✓ Updated build.zig');
-  PrintLn('');
+  //PrintLn('');
 
   // Phase 4: Call Zig build
   PrintLn('Building with Zig...');
-  PrintLn('');
+  //PrintLn('');
 
   LExitCode := 0;
 
@@ -825,7 +1078,10 @@ begin
       end
       else
       begin
-        PrintLn('');
+        if LTrimmed.StartsWith('Build Summary:') then
+          PrintLn('');
+        if LTrimmed.StartsWith('+- ') then
+          LTrimmed := LTrimmed.Replace('+- ', '');
         PrintLn('  %s', [LTrimmed]);
       end;
     end
@@ -876,10 +1132,10 @@ begin
   if not TFile.Exists(LExePath) then
     raise Exception.Create('Error: Executable not found. Did you run "nitro build" first?');
 
-  PrintLn('');
-  PrintLn('');
+  //PrintLn('');
+  //PrintLn('');
   PrintLn('Running ' + FProjectName + '...');
-  PrintLn('');
+  //PrintLn('');
 
   // Run the executable using TNPUtils.RunExe
   LExitCode := TNPUtils.RunExe(
@@ -941,6 +1197,58 @@ procedure TNPCompiler.ConvertCHeader(const AInputFile: string; const AOutputFile
 begin
 end;
 
+procedure TNPCompiler.Zig(const AArgs: string);
+var
+  LZigExe: string;
+  LExitCode: DWORD;
+  LWorkDir: string;
+begin
+  LZigExe := TNPUtils.GetZigExePath();
+  if not TFile.Exists(LZigExe) then
+  begin
+    PrintLn('');
+    PrintLn('Error: Zig EXE was not found...');
+    Exit;
+  end;
+
+  // Use project directory if available, otherwise current directory
+  if not FProjectDir.IsEmpty then
+    LWorkDir := FProjectDir
+  else
+    LWorkDir := GetCurrentDir();
+
+  LExitCode := 0;
+
+  TNPUtils.CaptureZigConsoleOutput(
+    'Zig Command',
+    PChar(LZigExe),
+    PChar(AArgs),
+    LWorkDir,
+    LExitCode,
+    nil,
+    procedure(const ALine: string; const AUserData: Pointer)
+    var
+      LTrimmed: string;
+    begin
+      LTrimmed := ALine.Trim;
+      if LTrimmed = '' then
+        Exit;
+
+      if (LTrimmed[1] = '[') then
+      begin
+        Print(#13+'  '+LTrimmed+#27'[K');
+      end
+      else
+      begin
+        PrintLn('  %s', [LTrimmed]);
+      end;
+    end
+  );
+
+  if LExitCode <> 0 then
+    raise Exception.CreateFmt('Zig command failed with exit code %d', [LExitCode]);
+end;
+
 { Build configuration methods }
 
 procedure TNPCompiler.SetTarget(const ATarget: string);
@@ -986,6 +1294,11 @@ end;
 procedure TNPCompiler.AddLinkLibrary(const ALibrary: string);
 begin
   FBuildSettings.AddLinkLibrary(ALibrary);
+end;
+
+procedure TNPCompiler.AddIncludeHeader(const AHeader: string);
+begin
+  FBuildSettings.AddIncludeHeader(AHeader);
 end;
 
 procedure TNPCompiler.ClearModulePaths();

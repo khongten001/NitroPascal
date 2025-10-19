@@ -1,0 +1,67 @@
+﻿{===============================================================================
+  NitroPascal - Modern Pascal • C Performance
+
+  Copyright © 2025-present tinyBigGAMES™ LLC
+  All Rights Reserved.
+
+  https://nitropascal.org
+
+  See LICENSE for license information
+===============================================================================}
+
+program ProgramControlAdvanced;
+
+begin
+  WriteLn('=== Testing Advanced Program Control Functions ===');
+  WriteLn();
+  
+  { ============================================================================
+    RunError
+    ============================================================================ }
+  
+  WriteLn('--- RunError ---');
+  WriteLn('RunError terminates the program with a runtime error code.');
+  WriteLn('Example: RunError(1) would exit with error code 1.');
+  WriteLn();
+  WriteLn('Note: Actual call commented out to allow test to complete.');
+  WriteLn('Uncomment to test program termination:');
+  WriteLn('  { RunError(1); }');
+  
+  { Uncomment to test - program will terminate }
+  { RunError(1); }
+  
+  WriteLn();
+  
+  { ============================================================================
+    Abort
+    ============================================================================ }
+  
+  WriteLn('--- Abort ---');
+  WriteLn('Abort immediately terminates program execution.');
+  WriteLn('Unlike Halt, Abort is typically used for error conditions.');
+  WriteLn();
+  WriteLn('Note: Actual call commented out to allow test to complete.');
+  WriteLn('Uncomment to test program termination:');
+  WriteLn('  { Abort(); }');
+  
+  { Uncomment to test - program will terminate }
+  { Abort(); }
+  
+  WriteLn();
+  
+  { ============================================================================
+    Summary
+    ============================================================================ }
+  
+  WriteLn('--- Summary ---');
+  WriteLn('Program control functions tested (in commented form):');
+  WriteLn('  - RunError: Terminates with runtime error code');
+  WriteLn('  - Abort: Immediately aborts program execution');
+  WriteLn();
+  WriteLn('Both functions cause immediate program termination.');
+  WriteLn('To test actual behavior, uncomment the function calls above.');
+  
+  WriteLn();
+  WriteLn('✓ Advanced program control functions documented successfully');
+  WriteLn('  (Actual termination tests commented out for safety)');
+end.

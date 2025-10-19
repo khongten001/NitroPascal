@@ -27,6 +27,7 @@ const
   NP_ERROR_INVALID      = 'InvalidInput';
   NP_ERROR_IO           = 'IOError';
   NP_ERROR_INTERNAL     = 'InternalError';
+  NP_ERROR_COMPILATION  = 'CompilationError';
 
 type
   { TNPError }

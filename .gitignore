@@ -84,8 +84,8 @@ modules/
 # NitroPascal
 bin/res/*
 !bin/res/.gitkeep
-bin/projects/*
-!bin/projects/.gitkeep
+#bin/projects/*
+#!bin/projects/.gitkeep
 checkpoint.zip
 _checkpoint.cmd
 bin/run_unittests.cmd
@@ -99,3 +99,8 @@ src/TASK.md
 src/TASK0.md
 src/TASK2.md
 checkpoint_base.zip
+docs/BENCHMARK.pdf
+docs/COVERAGE.pdf
+docs/DESIGN.pdf
+docs/MANUAL.pdf
+bin/tests/*

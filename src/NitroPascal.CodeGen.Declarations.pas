@@ -29,11 +29,14 @@ procedure GenerateEnumType(const ACodeGenerator: TNPCodeGenerator; const ATypeNa
 procedure GenerateRecordType(const ACodeGenerator: TNPCodeGenerator; const ATypeName: string; const ATypeNode: TJSONObject);
 procedure GeneratePointerType(const ACodeGenerator: TNPCodeGenerator; const ATypeName: string; const ATypeNode: TJSONObject);
 procedure GenerateFunctionDeclarations(const ACodeGenerator: TNPCodeGenerator; const AAST: TJSONArray);
-procedure GenerateFunctionDeclaration(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject);
+procedure GenerateFunctionDeclaration(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject; const AUnitName: string = '');
 procedure GenerateFunctionImplementation(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject);
 procedure GenerateFunctionImplementationWithExport(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject; const AIsExported: Boolean);
 function  GenerateParameterList(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject): string;
 function  HasForwardDirective(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject): Boolean;
+function  IsExternalFunction(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject): Boolean;
+procedure RegisterExternalFunctionInfo(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject);
+procedure EmitRegisteredExternalFunctions(const ACodeGenerator: TNPCodeGenerator);
 
 implementation
 
@@ -48,7 +51,10 @@ function GenerateConstantValue(const ACodeGenerator: TNPCodeGenerator; const AVa
 function GenerateArrayConstant(const ACodeGenerator: TNPCodeGenerator; const AValueNode: TJSONObject): string; forward;
 function IsStructType(const ACodeGenerator: TNPCodeGenerator; const ATypeName: string; const ATypeSectionNode: TJSONObject): Boolean; forward;
 procedure GenerateSimpleTypeAlias(const ACodeGenerator: TNPCodeGenerator; const ATypeName: string; const ATypeNode: TJSONObject); forward;
+procedure GenerateArrayTypeAlias(const ACodeGenerator: TNPCodeGenerator; const ATypeName: string; const ATypeNode: TJSONObject); forward;
+procedure GenerateProceduralType(const ACodeGenerator: TNPCodeGenerator; const ATypeName: string; const ATypeNode: TJSONObject); forward;
 function GetCallingConvention(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject): string; forward;
+function IsBuiltInType(const ACodeGenerator: TNPCodeGenerator; const ATypeName: string): Boolean; forward;
 
 {------------------------------------------------------------------------------}
 { Forward Declaration Support }
@@ -85,6 +91,8 @@ end;
 {------------------------------------------------------------------------------}
 
 function MapToCType(const APasType: string): string;
+var
+  LBaseType: string;
 begin
   // Map Pascal types to raw C types (not np:: types)
   // These are used ONLY for external function declarations
@@ -103,16 +111,28 @@ begin
     Result := 'bool'
   else if SameText(APasType, 'Char') then
     Result := 'wchar_t'
+  else if SameText(APasType, 'AnsiChar') then
+    Result := 'char'
   else if SameText(APasType, 'Double') then
     Result := 'double'
+  else if SameText(APasType, 'Longint') then
+    Result := 'long'
   else if SameText(APasType, 'Single') then
     Result := 'float'
   else if SameText(APasType, 'Pointer') then
     Result := 'void*'
   else if SameText(APasType, 'PChar') or SameText(APasType, 'PWideChar') then
-    Result := 'const wchar_t*'
+    Result := 'wchar_t*'
   else if SameText(APasType, 'PAnsiChar') then
-    Result := 'const char*'
+    Result := 'char*'
+  else if (Length(APasType) > 1) and (APasType[1] = 'P') and (UpCase(APasType[2]) = APasType[2]) then
+  begin
+    // Handle P-prefixed pointer types: PInteger, PImage, PVector2, etc.
+    // Extract base type (everything after 'P')
+    LBaseType := Copy(APasType, 2, Length(APasType) - 1);
+    // Recursively map the base type and add pointer
+    Result := MapToCType(LBaseType) + '*';
+  end
   else
     Result := APasType;  // Unknown type, use as-is
 end;
@@ -121,8 +141,12 @@ procedure RegisterExternalFunctionInfo(const ACodeGenerator: TNPCodeGenerator; c
 var
   LChildren: TJSONArray;
   LI: Integer;
+  LChild: TJSONValue;
+  LChildObj: TJSONObject;
+  LNodeType: string;
   LMethodName: string;
   LCallingConv: string;
+  LReturnType: string;
   LFuncInfo: TExternalFunctionInfo;
   LParamInfo: TExternalParamInfo;
   LParamList: TList<TExternalParamInfo>;
@@ -134,6 +158,7 @@ var
   LParamName: string;
   LParamPasType: string;
   LParamCppType: string;
+  LKind: string;
 begin
   LChildren := ACodeGenerator.GetNodeChildren(AMethodNode);
   if LChildren = nil then
@@ -142,10 +167,37 @@ begin
   // Extract method information
   LMethodName := ACodeGenerator.GetNodeAttribute(AMethodNode, 'name');
   LCallingConv := GetCallingConvention(ACodeGenerator, AMethodNode);
+  LReturnType := 'void';  // Default return type
+  
+  // Extract return type
+  for LI := 0 to LChildren.Count - 1 do
+  begin
+    LChild := LChildren.Items[LI];
+    if not (LChild is TJSONObject) then
+      Continue;
+    
+    LChildObj := LChild as TJSONObject;
+    LNodeType := ACodeGenerator.GetNodeType(LChildObj);
+    
+    if LNodeType = 'RETURNTYPE' then
+    begin
+      if ACodeGenerator.GetNodeChildren(LChildObj).Count > 0 then
+      begin
+        LChild := ACodeGenerator.GetNodeChildren(LChildObj).Items[0];
+        if LChild is TJSONObject then
+        begin
+          LParamPasType := ACodeGenerator.GetNodeAttribute(LChild as TJSONObject, 'name');
+          LReturnType := MapToCType(LParamPasType);
+        end;
+      end;
+      Break;
+    end;
+  end;
   
   // Build external function info for registration
   LFuncInfo.Name := LMethodName;
   LFuncInfo.CallingConvention := LCallingConv;
+  LFuncInfo.ReturnType := LReturnType;
   LParamList := TList<TExternalParamInfo>.Create();
   try
     // Build parameter list with C type mapping
@@ -171,8 +223,27 @@ begin
           LParamName := ACodeGenerator.GetNodeAttribute(LNameNode, 'value');
           LParamPasType := ACodeGenerator.GetNodeAttribute(LTypeNode, 'name');
           
+          // Get parameter kind (const, var, out, or empty)
+          LKind := ACodeGenerator.GetNodeAttribute(LParamNode, 'kind');
+          
           // Map to raw C types for external function parameters
           LParamCppType := MapToCType(LParamPasType);
+          
+          // Apply const modifier if needed - CRITICAL for matching C library signatures
+          if LKind = 'const' then
+          begin
+            // Only add const if not already present (PAnsiChar/PChar already have const)
+            if not LParamCppType.StartsWith('const ') then
+            begin
+              // const parameters: add const qualifier to the type
+              if LParamCppType.Contains('*') then
+                // For const pointer parameters: const Type* (pointer to const)
+                LParamCppType := 'const ' + LParamCppType
+              else
+                // For const value parameters: const Type
+                LParamCppType := 'const ' + LParamCppType;
+            end;
+          end;
           
           // Store parameter info for registration
           LParamInfo.Name := LParamName;
@@ -277,6 +348,23 @@ begin
     Result := 'cdecl';
 end;
 
+function IsBuiltInType(const ACodeGenerator: TNPCodeGenerator; const ATypeName: string): Boolean;
+var
+  LKey: string;
+begin
+  // Check if type exists in TypeMap using case-insensitive comparison
+  // This ensures types like "string" (lowercase) match "String" (capitalized)
+  for LKey in ACodeGenerator.TypeMap.Keys do
+  begin
+    if SameText(LKey, ATypeName) then
+    begin
+      Result := True;
+      Exit;
+    end;
+  end;
+  Result := False;
+end;
+
 function CallingConventionToCpp(const AConvention: string): string;
 begin
   // Map Delphi calling convention to C++ attribute
@@ -290,7 +378,7 @@ begin
     Result := '__cdecl';  // Default
 end;
 
-procedure GenerateExternalFunctionDeclaration(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject);
+procedure GenerateExternalFunctionDeclaration(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject; const AUnitName: string);
 var
   LChildren: TJSONArray;
   LI: Integer;
@@ -386,11 +474,27 @@ begin
           LParamCppType := MapToCType(LParamPasType);
           
           // Build parameter string with appropriate modifier
+          // CRITICAL: For external functions, match the C signature EXACTLY
+          // Only add modifiers when explicitly specified in Pascal
           if LKind = 'var' then
+            // var parameters become references
             LParamStr := Format('%s& %s', [LParamCppType, LParamName])
           else if LKind = 'out' then
+            // out parameters become references
             LParamStr := Format('%s& %s', [LParamCppType, LParamName])
+          else if LKind = 'const' then
+          begin
+            // const parameters: add const qualifier
+            if LParamCppType.Contains('*') then
+              // For const pointer parameters: const Type* (pointer to const)
+              LParamStr := Format('const %s %s', [LParamCppType, LParamName])
+            else
+              // For const value parameters: const Type
+              LParamStr := Format('const %s %s', [LParamCppType, LParamName]);
+          end
           else
+            // NO modifier in Pascal: generate parameter as-is (no const, no &)
+            // This matches the C library signature exactly
             LParamStr := Format('%s %s', [LParamCppType, LParamName]);
           
           if LParameters <> '' then
@@ -416,11 +520,106 @@ begin
     LParamList.Free();
   end;
   
-  // Generate extern "C" declaration
+  // Generate extern "C" declaration for static library
+  // Note: No __declspec(dllimport) - this is for static linking, not DLL imports
+  // Note: No namespace wrapper here - unit namespace already wraps all declarations in header
   ACodeGenerator.EmitLine('extern "C" {', []);
-  ACodeGenerator.EmitLine('    __declspec(dllimport) %s %s %s(%s);', 
+  ACodeGenerator.IncIndent();
+  ACodeGenerator.EmitLine('%s %s %s(%s);', 
     [LReturnType, LCppCallConv, LMethodName, LParameters]);
+  ACodeGenerator.DecIndent();
   ACodeGenerator.EmitLine('}', []);
+end;
+
+procedure EmitRegisteredExternalFunctions(const ACodeGenerator: TNPCodeGenerator);
+var
+  LFuncInfo: TExternalFunctionInfo;
+  LFuncName: string;
+  LParameters: string;
+  LI: Integer;
+  LCppCallConv: string;
+  LParamType: string;
+begin
+  // If this unit includes headers, those headers provide the declarations
+  // Don't emit duplicate declarations
+  if Length(ACodeGenerator.GetIncludeHeaders()) > 0 then
+    Exit;
+
+  // Emit all registered external functions OUTSIDE the namespace
+  // This is called after the namespace closes in the header file
+  
+  // Check if we have any external functions to emit
+  if (ACodeGenerator.ExternalFunctions = nil) or 
+     (ACodeGenerator.ExternalFunctions.Count = 0) then
+    Exit;
+  
+  ACodeGenerator.EmitLine('// External C function declarations (global namespace)', []);
+  ACodeGenerator.EmitLine('extern "C" {', []);
+  ACodeGenerator.IncIndent();
+  
+  // Emit external C declarations with original names
+  for LFuncName in ACodeGenerator.ExternalFunctions.Keys do
+  begin
+    LFuncInfo := ACodeGenerator.GetExternalFunctionInfo(LFuncName);
+    LCppCallConv := CallingConventionToCpp(LFuncInfo.CallingConvention);
+    
+    // Build parameter list with namespace-qualified types
+    LParameters := '';
+    for LI := 0 to High(LFuncInfo.Parameters) do
+    begin
+      if LParameters <> '' then
+        LParameters := LParameters + ', ';
+      
+      // Qualify struct types with namespace
+      LParamType := LFuncInfo.Parameters[LI].CppType;
+      if (not LParamType.Contains('*')) and  // Not a pointer
+         (not LParamType.Contains('int')) and  // Not a primitive
+         (not LParamType.Contains('char')) and
+         (not LParamType.Contains('bool')) and
+         (not LParamType.Contains('float')) and
+         (not LParamType.Contains('double')) and
+         (not LParamType.Contains('void')) then
+      begin
+        // Check if this unit has included headers
+        // If headers are included, types might be from those headers (global namespace)
+        // so we should NOT namespace-qualify them
+        if Length(ACodeGenerator.GetIncludeHeaders()) = 0 then
+        begin
+          // No included headers - this is likely a Pascal-defined struct
+          // Qualify with namespace
+          LParamType := ACodeGenerator.CurrentUnitName + '::' + LParamType;
+        end;
+        // else: Headers are included, leave type unqualified (assumes global namespace)
+      end;
+      
+      // For external functions, emit parameters WITHOUT const qualifier
+      // The registered info contains the raw C types without modifiers
+      LParameters := LParameters + Format('%s %s', 
+        [LParamType, LFuncInfo.Parameters[LI].Name]);
+    end;
+    
+    // Emit external C function declaration with original name
+    ACodeGenerator.EmitLine('%s %s %s(%s);', 
+      [LFuncInfo.ReturnType, LCppCallConv, LFuncInfo.Name, LParameters]);
+  end;
+  
+  ACodeGenerator.DecIndent();
+  ACodeGenerator.EmitLine('}', []);
+  ACodeGenerator.EmitLn();
+  
+  // Now bring these functions into the namespace with 'using' declarations
+  ACodeGenerator.EmitLine('namespace %s {', [ACodeGenerator.CurrentUnitName]);
+  ACodeGenerator.IncIndent();
+  ACodeGenerator.EmitLine('// Bring external C functions into namespace', []);
+  
+  for LFuncName in ACodeGenerator.ExternalFunctions.Keys do
+  begin
+    ACodeGenerator.EmitLine('using ::%s;', [LFuncName]);
+  end;
+  
+  ACodeGenerator.DecIndent();
+  ACodeGenerator.EmitLine('} // namespace %s', [ACodeGenerator.CurrentUnitName]);
+  ACodeGenerator.EmitLn();
 end;
 
 {------------------------------------------------------------------------------}
@@ -503,6 +702,8 @@ var
   LSize: Integer;
   LElementTypeNode: TJSONObject;
   LElementType: string;
+  LVarLine: Integer;
+  LSourceFile: string;
 begin
   LChildren := ACodeGenerator.GetNodeChildren(AVariablesNode);
   if LChildren = nil then
@@ -517,6 +718,12 @@ begin
     LVarNode := LChild as TJSONObject;
     if ACodeGenerator.GetNodeType(LVarNode) <> 'VARIABLE' then
       Continue;
+    
+    // Emit #line directive for variable declaration
+    LVarLine := StrToIntDef(ACodeGenerator.GetNodeAttribute(LVarNode, 'line'), 0);
+    LSourceFile := ACodeGenerator.CurrentUnitName + '.pas';
+    if LVarLine > 0 then
+      ACodeGenerator.EmitLineDirective(LSourceFile, LVarLine);
     
     // Get NAME and TYPE children
     LNameNode := ACodeGenerator.FindNodeByType(ACodeGenerator.GetNodeChildren(LVarNode), 'NAME');
@@ -643,7 +850,15 @@ begin
       end
       else
       begin
-        LVarType := ACodeGenerator.TranslateType(ACodeGenerator.GetNodeAttribute(LTypeNode, 'name'));
+        // Named type (e.g., TPoint, PPoint, Integer) - use as-is, it's already declared
+        LVarType := ACodeGenerator.GetNodeAttribute(LTypeNode, 'name');
+        
+        // Only call TranslateType if it's a built-in type that needs namespace qualification
+        // For user-defined types (TPoint, PPoint), use them directly
+        if IsBuiltInType(ACodeGenerator, LVarType) then
+          LVarType := ACodeGenerator.TranslateType(LVarType);
+        // else: use LVarType as-is (it's a user-defined type already declared)
+        
         // Track variable type
         ACodeGenerator.VariableTypes.AddOrSetValue(LVarName, LVarType);
         ACodeGenerator.EmitLine('%s %s;', [LVarType, LVarName]);
@@ -803,7 +1018,15 @@ begin
       end
       else
       begin
-        LVarType := ACodeGenerator.TranslateType(ACodeGenerator.GetNodeAttribute(LTypeNode, 'name'));
+        // Named type (e.g., TPoint, PPoint, Integer) - use as-is, it's already declared
+        LVarType := ACodeGenerator.GetNodeAttribute(LTypeNode, 'name');
+        
+        // Only call TranslateType if it's a built-in type that needs namespace qualification
+        // For user-defined types (TPoint, PPoint), use them directly
+        if IsBuiltInType(ACodeGenerator, LVarType) then
+          LVarType := ACodeGenerator.TranslateType(LVarType);
+        // else: use LVarType as-is (it's a user-defined type already declared)
+        
         ACodeGenerator.EmitLine('extern %s %s;', [LVarType, LVarName]);
       end;
     end;
@@ -828,6 +1051,8 @@ var
   LConstValue: string;
   LHasType: Boolean;
   LLiteralType: string;
+  LConstLine: Integer;
+  LSourceFile: string;
 begin
   LChildren := ACodeGenerator.GetNodeChildren(AConstantsNode);
   if LChildren = nil then
@@ -842,6 +1067,12 @@ begin
     LConstNode := LChild as TJSONObject;
     if ACodeGenerator.GetNodeType(LConstNode) <> 'CONSTANT' then
       Continue;
+    
+    // Emit #line directive for constant declaration
+    LConstLine := StrToIntDef(ACodeGenerator.GetNodeAttribute(LConstNode, 'line'), 0);
+    LSourceFile := ACodeGenerator.CurrentUnitName + '.pas';
+    if LConstLine > 0 then
+      ACodeGenerator.EmitLineDirective(LSourceFile, LConstLine);
     
     // Get NAME
     LNameNode := ACodeGenerator.FindNodeByType(ACodeGenerator.GetNodeChildren(LConstNode), 'NAME');
@@ -1054,9 +1285,98 @@ procedure GenerateSimpleTypeAlias(const ACodeGenerator: TNPCodeGenerator; const 
 var
   LBaseType: string;
   LCppType: string;
+  LTypeLine: Integer;
+  LSourceFile: string;
 begin
+  // Emit #line directive for type alias declaration
+  LTypeLine := StrToIntDef(ACodeGenerator.GetNodeAttribute(ATypeNode, 'line'), 0);
+  LSourceFile := ACodeGenerator.CurrentUnitName + '.pas';
+  if LTypeLine > 0 then
+    ACodeGenerator.EmitLineDirective(LSourceFile, LTypeLine);
+  
   LBaseType := ACodeGenerator.GetNodeAttribute(ATypeNode, 'name');
   LCppType := ACodeGenerator.TranslateType(LBaseType);
+  ACodeGenerator.EmitLine('using %s = %s;', [ATypeName, LCppType]);
+end;
+
+procedure GenerateArrayTypeAlias(const ACodeGenerator: TNPCodeGenerator; const ATypeName: string; const ATypeNode: TJSONObject);
+var
+  LTypeChildren: TJSONArray;
+  LBoundsNode: TJSONObject;
+  LDimensions: TJSONArray;
+  LDimNode: TJSONObject;
+  LDimChildren: TJSONArray;
+  LElementTypeNode: TJSONObject;
+  LElementType: string;
+  LLowExpr: string;
+  LHighExpr: string;
+  LLowVal: Integer;
+  LHighVal: Integer;
+  LSize: Integer;
+  LCppType: string;
+  LDimI: Integer;
+  LTypeLine: Integer;
+  LSourceFile: string;
+begin
+  // Emit #line directive for array type alias declaration
+  LTypeLine := StrToIntDef(ACodeGenerator.GetNodeAttribute(ATypeNode, 'line'), 0);
+  LSourceFile := ACodeGenerator.CurrentUnitName + '.pas';
+  if LTypeLine > 0 then
+    ACodeGenerator.EmitLineDirective(LSourceFile, LTypeLine);
+  
+  // Array type alias: TByteArray = array[0..99] of Byte
+  // Translates to: using TByteArray = std::array<np::Byte, 100>;
+  
+  LTypeChildren := ACodeGenerator.GetNodeChildren(ATypeNode);
+  if (LTypeChildren = nil) or (LTypeChildren.Count < 2) then
+    Exit;
+  
+  // First child is BOUNDS
+  LBoundsNode := ACodeGenerator.FindNodeByType(LTypeChildren, 'BOUNDS');
+  if LBoundsNode = nil then
+    Exit;
+  
+  // Last child is element TYPE
+  LElementTypeNode := LTypeChildren.Items[LTypeChildren.Count - 1] as TJSONObject;
+  if ACodeGenerator.GetNodeType(LElementTypeNode) <> 'TYPE' then
+    Exit;
+  
+  LElementType := ACodeGenerator.TranslateType(
+    ACodeGenerator.GetNodeAttribute(LElementTypeNode, 'name'));
+  
+  // Get dimensions
+  LDimensions := ACodeGenerator.GetNodeChildren(LBoundsNode);
+  if (LDimensions = nil) or (LDimensions.Count = 0) then
+    Exit;
+  
+  // Build nested std::array type from innermost to outermost
+  LCppType := LElementType;
+  for LDimI := LDimensions.Count - 1 downto 0 do
+  begin
+    LDimNode := LDimensions.Items[LDimI] as TJSONObject;
+    if ACodeGenerator.GetNodeType(LDimNode) <> 'DIMENSION' then
+      Continue;
+    
+    LDimChildren := ACodeGenerator.GetNodeChildren(LDimNode);
+    if (LDimChildren = nil) or (LDimChildren.Count < 2) then
+      Continue;
+    
+    // Get low and high bounds
+    LLowExpr := NitroPascal.CodeGen.Expressions.GenerateExpression(
+      ACodeGenerator, LDimChildren.Items[0] as TJSONObject);
+    LHighExpr := NitroPascal.CodeGen.Expressions.GenerateExpression(
+      ACodeGenerator, LDimChildren.Items[1] as TJSONObject);
+    
+    // Calculate size (high - low + 1)
+    LLowVal := StrToIntDef(LLowExpr, 0);
+    LHighVal := StrToIntDef(LHighExpr, 0);
+    LSize := LHighVal - LLowVal + 1;
+    
+    // Wrap in std::array
+    LCppType := Format('std::array<%s, %d>', [LCppType, LSize]);
+  end;
+  
+  // Emit type alias
   ACodeGenerator.EmitLine('using %s = %s;', [ATypeName, LCppType]);
 end;
 
@@ -1150,6 +1470,11 @@ begin
     begin
       GenerateEnumType(ACodeGenerator, LTypeName, LTypeNode);
     end
+    // Check if it's a procedural type (function or procedure)
+    else if (LTypeDef = 'function') or (LTypeDef = 'procedure') then
+    begin
+      GenerateProceduralType(ACodeGenerator, LTypeName, LTypeNode);
+    end
     else
     begin
       // Get literal type to determine what kind of type this is
@@ -1178,12 +1503,17 @@ begin
         else
           GeneratePointerType(ACodeGenerator, LTypeName, LTypeNode);
       end
+      else if LLiteralType = 'array' then
+      begin
+        // Array type alias: TByteArray = array[0..99] of Byte
+        GenerateArrayTypeAlias(ACodeGenerator, LTypeName, LTypeNode);
+      end
       else if (LTypeDef <> '') and (LLiteralType = '') then
       begin
         // Simple type alias: TMyInt = Integer
         GenerateSimpleTypeAlias(ACodeGenerator, LTypeName, LTypeNode);
       end;
-      // Add more type kinds here as needed (class, array, etc.)
+      // Add more type kinds here as needed (class, etc.)
     end;
   end;
 end;
@@ -1200,7 +1530,15 @@ var
   LExplicitValue: string;
   LIsFirst: Boolean;
   LExprChildren: TJSONArray;
+  LTypeLine: Integer;
+  LSourceFile: string;
 begin
+  // Emit #line directive for enum type declaration
+  LTypeLine := StrToIntDef(ACodeGenerator.GetNodeAttribute(ATypeNode, 'line'), 0);
+  LSourceFile := ACodeGenerator.CurrentUnitName + '.pas';
+  if LTypeLine > 0 then
+    ACodeGenerator.EmitLineDirective(LSourceFile, LTypeLine);
+  
   // Emit enum opening
   ACodeGenerator.EmitLine('enum %s {', [ATypeName]);
   ACodeGenerator.IncIndent();
@@ -1289,7 +1627,15 @@ var
   LFieldTypeNode: TJSONObject;
   LFieldName: string;
   LFieldType: string;
+  LTypeLine: Integer;
+  LSourceFile: string;
 begin
+  // Emit #line directive for record type declaration
+  LTypeLine := StrToIntDef(ACodeGenerator.GetNodeAttribute(ATypeNode, 'line'), 0);
+  LSourceFile := ACodeGenerator.CurrentUnitName + '.pas';
+  if LTypeLine > 0 then
+    ACodeGenerator.EmitLineDirective(LSourceFile, LTypeLine);
+  
   // Emit struct opening
   ACodeGenerator.EmitLine('struct %s {', [ATypeName]);
   ACodeGenerator.IncIndent();
@@ -1315,7 +1661,14 @@ begin
       if (LFieldNameNode <> nil) and (LFieldTypeNode <> nil) then
       begin
         LFieldName := ACodeGenerator.GetNodeAttribute(LFieldNameNode, 'value');
-        LFieldType := ACodeGenerator.TranslateType(ACodeGenerator.GetNodeAttribute(LFieldTypeNode, 'name'));
+        LFieldType := ACodeGenerator.GetNodeAttribute(LFieldTypeNode, 'name');
+        
+        // Only call TranslateType if it's a built-in type that needs namespace qualification
+        // For user-defined types (TPoint, PPoint), use them directly
+        if IsBuiltInType(ACodeGenerator, LFieldType) then
+          LFieldType := ACodeGenerator.TranslateType(LFieldType);
+        // else: use LFieldType as-is (it's a user-defined type already declared)
+        
         ACodeGenerator.EmitLine('%s %s;', [LFieldType, LFieldName]);
       end;
     end;
@@ -1330,7 +1683,15 @@ var
   LChildren: TJSONArray;
   LTargetTypeNode: TJSONObject;
   LTargetType: string;
+  LTypeLine: Integer;
+  LSourceFile: string;
 begin
+  // Emit #line directive for pointer type declaration
+  LTypeLine := StrToIntDef(ACodeGenerator.GetNodeAttribute(ATypeNode, 'line'), 0);
+  LSourceFile := ACodeGenerator.CurrentUnitName + '.pas';
+  if LTypeLine > 0 then
+    ACodeGenerator.EmitLineDirective(LSourceFile, LTypeLine);
+  
   // Get the target type (what the pointer points to)
   LChildren := ACodeGenerator.GetNodeChildren(ATypeNode);
   if (LChildren = nil) or (LChildren.Count = 0) then
@@ -1342,6 +1703,111 @@ begin
   // Translate type and emit using (modern C++ style)
   LTargetType := ACodeGenerator.TranslateType(LTargetType);
   ACodeGenerator.EmitLine('using %s = %s*;', [ATypeName, LTargetType]);
+end;
+
+procedure GenerateProceduralType(const ACodeGenerator: TNPCodeGenerator; const ATypeName: string; const ATypeNode: TJSONObject);
+var
+  LChildren: TJSONArray;
+  LParametersNode: TJSONObject;
+  LReturnTypeNode: TJSONObject;
+  LParamChildren: TJSONArray;
+  LParamNode: TJSONObject;
+  LTypeNode: TJSONObject;
+  LI: Integer;
+  LParamType: string;
+  LParamTypes: TStringBuilder;
+  LReturnType: string;
+  LFunctionSignature: string;
+  LKind: string;
+  LTypeLine: Integer;
+  LSourceFile: string;
+begin
+  // Emit #line directive for procedural type declaration
+  LTypeLine := StrToIntDef(ACodeGenerator.GetNodeAttribute(ATypeNode, 'line'), 0);
+  LSourceFile := ACodeGenerator.CurrentUnitName + '.pas';
+  if LTypeLine > 0 then
+    ACodeGenerator.EmitLineDirective(LSourceFile, LTypeLine);
+  
+  // Generate C++ function type using std::function<>
+  // Pascal: TCallback = function(x: Integer): String;
+  // C++:    using TCallback = std::function<np::String(np::Integer)>;
+  
+  LChildren := ACodeGenerator.GetNodeChildren(ATypeNode);
+  if LChildren = nil then
+    Exit;
+  
+  // Find PARAMETERS and RETURNTYPE nodes
+  LParametersNode := ACodeGenerator.FindNodeByType(LChildren, 'PARAMETERS');
+  LReturnTypeNode := ACodeGenerator.FindNodeByType(LChildren, 'RETURNTYPE');
+  
+  // Determine return type
+  if LReturnTypeNode <> nil then
+  begin
+    // Function type - has return type
+    if ACodeGenerator.GetNodeChildren(LReturnTypeNode).Count > 0 then
+    begin
+      LReturnType := ACodeGenerator.TranslateType(
+        ACodeGenerator.GetNodeAttribute(
+          ACodeGenerator.GetNodeChildren(LReturnTypeNode).Items[0] as TJSONObject, 'name'));
+    end
+    else
+      LReturnType := 'void';
+  end
+  else
+  begin
+    // Procedure type - no return type
+    LReturnType := 'void';
+  end;
+  
+  // Build parameter type list
+  LParamTypes := TStringBuilder.Create();
+  try
+    if LParametersNode <> nil then
+    begin
+      LParamChildren := ACodeGenerator.GetNodeChildren(LParametersNode);
+      if LParamChildren <> nil then
+      begin
+        for LI := 0 to LParamChildren.Count - 1 do
+        begin
+          LParamNode := LParamChildren.Items[LI] as TJSONObject;
+          if ACodeGenerator.GetNodeType(LParamNode) <> 'PARAMETER' then
+            Continue;
+          
+          // Get parameter kind (const, var, out)
+          LKind := ACodeGenerator.GetNodeAttribute(LParamNode, 'kind');
+          
+          // Get TYPE child
+          LTypeNode := ACodeGenerator.FindNodeByType(
+            ACodeGenerator.GetNodeChildren(LParamNode), 'TYPE');
+          
+          if LTypeNode = nil then
+            Continue;
+          
+          LParamType := ACodeGenerator.TranslateType(
+            ACodeGenerator.GetNodeAttribute(LTypeNode, 'name'));
+          
+          // Add reference modifier for var/out parameters
+          if (LKind = 'var') or (LKind = 'out') then
+            LParamType := LParamType + '&';
+          
+          if LParamTypes.Length > 0 then
+            LParamTypes.Append(', ');
+          LParamTypes.Append(LParamType);
+        end;
+      end;
+    end;
+    
+    // Build final std::function signature
+    if LParamTypes.Length > 0 then
+      LFunctionSignature := Format('std::function<%s(%s)>', [LReturnType, LParamTypes.ToString()])
+    else
+      LFunctionSignature := Format('std::function<%s()>', [LReturnType]);
+    
+    // Emit type alias
+    ACodeGenerator.EmitLine('using %s = %s;', [ATypeName, LFunctionSignature]);
+  finally
+    LParamTypes.Free();
+  end;
 end;
 
 {------------------------------------------------------------------------------}
@@ -1375,7 +1841,7 @@ begin
   end;
 end;
 
-procedure GenerateFunctionDeclaration(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject);
+procedure GenerateFunctionDeclaration(const ACodeGenerator: TNPCodeGenerator; const AMethodNode: TJSONObject; const AUnitName: string);
 var
   LChildren: TJSONArray;
   LI: Integer;
@@ -1404,23 +1870,29 @@ begin
   // Check if this is an external function
   if IsExternalFunction(ACodeGenerator, AMethodNode) then
   begin
-    // DON'T generate any declaration for external functions
-    // The function exists in an external DLL - just track the library
-    // for linking and register the function info for call-site conversions.
-    
-    // Register external function info (needed for string conversions at call sites)
-    RegisterExternalFunctionInfo(ACodeGenerator, AMethodNode);
-    
-    // Track library for linking
+    // Get library name to determine linking type
     LLibrary := GetExternalLibrary(ACodeGenerator, AMethodNode);
+    
     if LLibrary <> '' then
     begin
-      // Strip .dll extension
+      // DLL LINKING: external 'library.dll'
+      // Don't generate declaration - linker will resolve at runtime
+      // Just track the library for linking
       LLibName := ChangeFileExt(LLibrary, '');
       ACodeGenerator.AddExternalLibrary(LLibName);
+      
+      // Register external function info (needed for string conversions at call sites)
+      RegisterExternalFunctionInfo(ACodeGenerator, AMethodNode);
+      
+      Exit;  // Skip declaration generation - DLL will provide
+    end
+    else
+    begin
+      // STATIC LINKING: external; (no library name)
+      // Register external function info - declaration will be emitted outside namespace
+      RegisterExternalFunctionInfo(ACodeGenerator, AMethodNode);
+      Exit;  // Skip normal function processing - external declaration handled separately
     end;
-    
-    Exit;  // Skip declaration generation - linker will resolve
   end;
   
   // Normal function declaration (existing code)
@@ -1442,7 +1914,15 @@ begin
       begin
         LChild := ACodeGenerator.GetNodeChildren(LChildObj).Items[0];
         if LChild is TJSONObject then
-          LReturnType := ACodeGenerator.TranslateType(ACodeGenerator.GetNodeAttribute(LChild as TJSONObject, 'name'));
+        begin
+          LReturnType := ACodeGenerator.GetNodeAttribute(LChild as TJSONObject, 'name');
+          
+          // Only call TranslateType if it's a built-in type that needs namespace qualification
+          // For user-defined types (TPoint, PPoint), use them directly
+          if IsBuiltInType(ACodeGenerator, LReturnType) then
+            LReturnType := ACodeGenerator.TranslateType(LReturnType);
+          // else: use LReturnType as-is (it's a user-defined type already declared)
+        end;
       end;
     end;
   end;
@@ -1511,7 +1991,15 @@ begin
       begin
         LChild := ACodeGenerator.GetNodeChildren(LChildObj).Items[0];
         if LChild is TJSONObject then
-          LReturnType := ACodeGenerator.TranslateType(ACodeGenerator.GetNodeAttribute(LChild as TJSONObject, 'name'));
+        begin
+          LReturnType := ACodeGenerator.GetNodeAttribute(LChild as TJSONObject, 'name');
+          
+          // Only call TranslateType if it's a built-in type that needs namespace qualification
+          // For user-defined types (TPoint, PPoint), use them directly
+          if IsBuiltInType(ACodeGenerator, LReturnType) then
+            LReturnType := ACodeGenerator.TranslateType(LReturnType);
+          // else: use LReturnType as-is (it's a user-defined type already declared)
+        end;
       end;
     end
     else if LNodeType = 'STATEMENTS' then
@@ -1527,6 +2015,12 @@ begin
   else
     ACodeGenerator.SetRoutineContext('PROCEDURE', '');
   try
+    // Emit #line directive for function start
+    var LMethodLine := StrToIntDef(ACodeGenerator.GetNodeAttribute(AMethodNode, 'line'), 0);
+    var LSourceFile := ACodeGenerator.CurrentUnitName + '.pas';
+    if LMethodLine > 0 then
+      ACodeGenerator.EmitLineDirective(LSourceFile, LMethodLine);
+    
     // Generate function signature
     ACodeGenerator.EmitLine('%s %s(%s) {', [LReturnType, LMethodName, LParameters]);
     ACodeGenerator.IncIndent();
@@ -1628,8 +2122,15 @@ begin
       begin
         LChild := ACodeGenerator.GetNodeChildren(LChildObj).Items[0];
         if LChild is TJSONObject then
-          LReturnType := ACodeGenerator.TranslateType(
-            ACodeGenerator.GetNodeAttribute(LChild as TJSONObject, 'name'));
+        begin
+          LReturnType := ACodeGenerator.GetNodeAttribute(LChild as TJSONObject, 'name');
+          
+          // Only call TranslateType if it's a built-in type that needs namespace qualification
+          // For user-defined types (TPoint, PPoint), use them directly
+          if IsBuiltInType(ACodeGenerator, LReturnType) then
+            LReturnType := ACodeGenerator.TranslateType(LReturnType);
+          // else: use LReturnType as-is (it's a user-defined type already declared)
+        end;
       end;
     end
     else if LNodeType = 'STATEMENTS' then
@@ -1645,6 +2146,12 @@ begin
   else
     ACodeGenerator.SetRoutineContext('PROCEDURE', '');
   try
+    // Emit #line directive for function start
+    var LMethodLine := StrToIntDef(ACodeGenerator.GetNodeAttribute(AMethodNode, 'line'), 0);
+    var LSourceFile := ACodeGenerator.CurrentUnitName + '.pas';
+    if LMethodLine > 0 then
+      ACodeGenerator.EmitLineDirective(LSourceFile, LMethodLine);
+    
     // Generate function signature with export and calling convention
     ACodeGenerator.EmitLine('%s%s%s %s(%s) {', 
       [LExportPrefix, LReturnType, LCallConv, LMethodName, LParameters]);
@@ -1727,7 +2234,13 @@ begin
       Continue;
     
     LName := ACodeGenerator.GetNodeAttribute(LNameNode, 'value');
-    LType := ACodeGenerator.TranslateType(ACodeGenerator.GetNodeAttribute(LTypeNode, 'name'));
+    LType := ACodeGenerator.GetNodeAttribute(LTypeNode, 'name');
+    
+    // Only call TranslateType if it's a built-in type that needs namespace qualification
+    // For user-defined types (TPoint, PPoint), use them directly
+    if IsBuiltInType(ACodeGenerator, LType) then
+      LType := ACodeGenerator.TranslateType(LType);
+    // else: use LType as-is (it's a user-defined type already declared)
     
     // Build parameter with appropriate modifier
     if LKind = 'var' then

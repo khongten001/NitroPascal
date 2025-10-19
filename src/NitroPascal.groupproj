@@ -3,6 +3,9 @@
         <ProjectGuid>{6389463E-FFA7-4A7E-9602-AF27C2749C5F}</ProjectGuid>
     </PropertyGroup>
     <ItemGroup>
+        <Projects Include="projects\npbench\NPBench_Delphi.dproj">
+            <Dependencies/>
+        </Projects>
         <Projects Include="projects\nitro\nitro.dproj">
             <Dependencies/>
         </Projects>
@@ -17,6 +20,15 @@
             <Default.Personality/>
         </BorlandProject>
     </ProjectExtensions>
+    <Target Name="NPBench_Delphi">
+        <MSBuild Projects="projects\npbench\NPBench_Delphi.dproj"/>
+    </Target>
+    <Target Name="NPBench_Delphi:Clean">
+        <MSBuild Projects="projects\npbench\NPBench_Delphi.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="NPBench_Delphi:Make">
+        <MSBuild Projects="projects\npbench\NPBench_Delphi.dproj" Targets="Make"/>
+    </Target>
     <Target Name="nitro">
         <MSBuild Projects="projects\nitro\nitro.dproj"/>
     </Target>
@@ -36,13 +48,13 @@
         <MSBuild Projects="..\examples\testbed\Testbed.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="nitro;Testbed"/>
+        <CallTarget Targets="NPBench_Delphi;nitro;Testbed"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="nitro:Clean;Testbed:Clean"/>
+        <CallTarget Targets="NPBench_Delphi:Clean;nitro:Clean;Testbed:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="nitro:Make;Testbed:Make"/>
+        <CallTarget Targets="NPBench_Delphi:Make;nitro:Make;Testbed:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

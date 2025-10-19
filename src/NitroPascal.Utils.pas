@@ -1320,7 +1320,7 @@ begin
   LPath := TPath.Combine(TPath.GetDirectoryName(ParamStr(0)), 'res\yaml');
   AddDllDirectory(PChar(LPath));
   }
-
+  ReportMemoryLeaksOnShutdown := True;
   TNPUtils.InitConsole();
 end;
 

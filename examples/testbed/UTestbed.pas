@@ -78,8 +78,33 @@ begin
     LTestSuite.AddTest(042, 'ProgramArrayCopy.pas', [], True, True);
     LTestSuite.AddTest(043, 'LibraryForward.pas', [], True, True);
 
+    // 0.4.0 Tests
+    LTestSuite.AddTest(044, 'ProgramMemoryAdvanced.pas', [], True, True);
+    LTestSuite.AddTest(045, 'ProgramStringAdvanced.pas', [], True, True);
+    LTestSuite.AddTest(046, 'ProgramWideString.pas', [], True, True);
+    LTestSuite.AddTest(047, 'ProgramMathAdvanced.pas', [], True, True);
+    LTestSuite.AddTest(048, 'ProgramOrdinalAdvanced.pas', [], True, True);
+    LTestSuite.AddTest(049, 'ProgramTestRunError.pas', [], True, True);
+    LTestSuite.AddTest(050, 'ProgramTestAbort.pas', [], True, True);
+    LTestSuite.AddTest(051, 'ProgramTestHalt.pas', [], True, True);
+    LTestSuite.AddTest(052, 'ProgramFileIOAdvanced.pas', [], True, True);
+    LTestSuite.AddTest(053, 'ProgramFileSystem.pas', [], True, True);
+    LTestSuite.AddTest(054, 'ProgramExceptionAdvanced.pas', [], True, True);
+    LTestSuite.AddTest(055, 'ProgramDynamicArrayAdvanced.pas', [], True, True);
+
+    // Testbed - for testing features
+    LTestSuite.AddTest(999, 'ProgramTestbed.pas', ['UTestbed.pas'], True, True, True);
+
     // Run the test suite based on command line
+    {$IFDEF RELEASE}
     LTestSuite.Run();
+    {$ELSE}
+    // Run testbed
+    LTestSuite.Test(999);
+    //LTestSuite.Test(24);
+    TNPUtils.Pause();
+    {$ENDIF}
+
 
   finally
     LTestSuite.Free();

@@ -33,6 +33,11 @@ type
   strict private
     FIndexer: TProjectIndexer;
     FSymbolMap: TDictionary<string, TSyntaxNode>;
+    FUnitHeaders: TDictionary<string, TArray<string>>;  // Track unit name -> headers
+    FUnitLinks: TDictionary<string, TArray<string>>;    // Track unit name -> link libraries
+    FUnitModulePaths: TDictionary<string, TArray<string>>;   // Track unit name -> module paths
+    FUnitIncludePaths: TDictionary<string, TArray<string>>;  // Track unit name -> include paths
+    FUnitLibraryPaths: TDictionary<string, TArray<string>>;  // Track unit name -> library paths
     
     procedure BuildSymbolMap;
     function GetUsedUnits(ANode: TSyntaxNode): TStringList;
@@ -43,10 +48,17 @@ type
       AUsedUnits: TStrings);
     procedure SerializeUnit(AUnitInfo: TProjectIndexer.TUnitInfo; 
       AOutput: TJSONArray);
+    procedure PreprocessUnitsForHeaders;
     
   public
     constructor Create(const AIndexer: TProjectIndexer);
     destructor Destroy; override;
+    
+    procedure SetUnitHeaders(const AUnitName: string; const AHeaders: TArray<string>);
+    procedure SetUnitLinks(const AUnitName: string; const ALinks: TArray<string>);
+    procedure SetUnitModulePaths(const AUnitName: string; const APaths: TArray<string>);
+    procedure SetUnitIncludePaths(const AUnitName: string; const APaths: TArray<string>);
+    procedure SetUnitLibraryPaths(const AUnitName: string; const APaths: TArray<string>);
     
     class function ToJSON(const AIndexer: TProjectIndexer; 
       const AFormatted: Boolean = False): string; static;
@@ -80,7 +92,8 @@ type
 implementation
 
 uses
-  System.IOUtils;
+  System.IOUtils,
+  NitroPascal.Preprocessor;
 
 { TNPJSONWriter }
 
@@ -89,11 +102,21 @@ begin
   inherited Create;
   FIndexer := AIndexer;
   FSymbolMap := TDictionary<string, TSyntaxNode>.Create;
+  FUnitHeaders := TDictionary<string, TArray<string>>.Create;
+  FUnitLinks := TDictionary<string, TArray<string>>.Create;
+  FUnitModulePaths := TDictionary<string, TArray<string>>.Create;
+  FUnitIncludePaths := TDictionary<string, TArray<string>>.Create;
+  FUnitLibraryPaths := TDictionary<string, TArray<string>>.Create;
   BuildSymbolMap;
 end;
 
 destructor TNPJSONWriter.Destroy;
 begin
+  FUnitLibraryPaths.Free;
+  FUnitIncludePaths.Free;
+  FUnitModulePaths.Free;
+  FUnitLinks.Free;
+  FUnitHeaders.Free;
   FSymbolMap.Free;
   inherited;
 end;
@@ -237,12 +260,87 @@ begin
   AOutput.AddElement(LNodeObj);
 end;
 
+procedure TNPJSONWriter.SetUnitHeaders(const AUnitName: string; const AHeaders: TArray<string>);
+begin
+  FUnitHeaders.AddOrSetValue(AUnitName, AHeaders);
+end;
+
+procedure TNPJSONWriter.SetUnitLinks(const AUnitName: string; const ALinks: TArray<string>);
+begin
+  FUnitLinks.AddOrSetValue(AUnitName, ALinks);
+end;
+
+procedure TNPJSONWriter.SetUnitModulePaths(const AUnitName: string; const APaths: TArray<string>);
+begin
+  FUnitModulePaths.AddOrSetValue(AUnitName, APaths);
+end;
+
+procedure TNPJSONWriter.SetUnitIncludePaths(const AUnitName: string; const APaths: TArray<string>);
+begin
+  FUnitIncludePaths.AddOrSetValue(AUnitName, APaths);
+end;
+
+procedure TNPJSONWriter.SetUnitLibraryPaths(const AUnitName: string; const APaths: TArray<string>);
+begin
+  FUnitLibraryPaths.AddOrSetValue(AUnitName, APaths);
+end;
+
+procedure TNPJSONWriter.PreprocessUnitsForHeaders;
+var
+  LUnitInfo: TProjectIndexer.TUnitInfo;
+  LUnitSettings: TNPBuildSettings;
+  LPreprocessor: TNPPreprocessor;
+begin
+  // Preprocess each unit to collect {$INCLUDE_HEADER} and {$LINK} directives
+  for LUnitInfo in FIndexer.ParsedUnits do
+  begin
+    if TFile.Exists(LUnitInfo.Path) then
+    begin
+      // Create temporary BuildSettings for this unit
+      LUnitSettings := TNPBuildSettings.Create();
+      try
+        // Preprocess the unit file to collect directives
+        LPreprocessor := TNPPreprocessor.Create(nil);
+        try
+          LPreprocessor.ProcessFile(LUnitInfo.Path, LUnitSettings);
+          
+          // Store collected headers and link libraries for this unit
+          SetUnitHeaders(LUnitInfo.Name, LUnitSettings.GetIncludeHeaders());
+          SetUnitLinks(LUnitInfo.Name, LUnitSettings.GetLinkLibraries());
+          
+          // Store collected paths for this unit
+          SetUnitModulePaths(LUnitInfo.Name, LUnitSettings.GetModulePaths());
+          SetUnitIncludePaths(LUnitInfo.Name, LUnitSettings.GetIncludePaths());
+          SetUnitLibraryPaths(LUnitInfo.Name, LUnitSettings.GetLibraryPaths());
+        finally
+          LPreprocessor.Free();
+        end;
+      finally
+        LUnitSettings.Free();
+      end;
+    end;
+  end;
+end;
+
 procedure TNPJSONWriter.SerializeUnit(AUnitInfo: TProjectIndexer.TUnitInfo; 
   AOutput: TJSONArray);
 var
   LUnitObj: TJSONObject;
   LUsedUnits: TStringList;
   LNodeArray: TJSONArray;
+  LHeaders: TArray<string>;
+  LHeadersArray: TJSONArray;
+  LHeader: string;
+  LLinks: TArray<string>;
+  LLinksArray: TJSONArray;
+  LLink: string;
+  LModulePaths: TArray<string>;
+  LModulePathsArray: TJSONArray;
+  LIncludePaths: TArray<string>;
+  LIncludePathsArray: TJSONArray;
+  LLibraryPaths: TArray<string>;
+  LLibraryPathsArray: TJSONArray;
+  LPath: string;
 begin
   if AUnitInfo.SyntaxTree = nil then
     Exit;
@@ -250,6 +348,51 @@ begin
   LUnitObj := TJSONObject.Create;
   LUnitObj.AddPair('name', AUnitInfo.Name);
   LUnitObj.AddPair('path', AUnitInfo.Path);
+  
+  // Add include headers if any exist for this unit
+  if FUnitHeaders.TryGetValue(AUnitInfo.Name, LHeaders) and (Length(LHeaders) > 0) then
+  begin
+    LHeadersArray := TJSONArray.Create;
+    for LHeader in LHeaders do
+      LHeadersArray.Add(LHeader);
+    LUnitObj.AddPair('includeHeaders', LHeadersArray);
+  end;
+  
+  // Add link libraries if any exist for this unit
+  if FUnitLinks.TryGetValue(AUnitInfo.Name, LLinks) and (Length(LLinks) > 0) then
+  begin
+    LLinksArray := TJSONArray.Create;
+    for LLink in LLinks do
+      LLinksArray.Add(LLink);
+    LUnitObj.AddPair('linkLibraries', LLinksArray);
+  end;
+  
+  // Add module paths if any exist for this unit
+  if FUnitModulePaths.TryGetValue(AUnitInfo.Name, LModulePaths) and (Length(LModulePaths) > 0) then
+  begin
+    LModulePathsArray := TJSONArray.Create;
+    for LPath in LModulePaths do
+      LModulePathsArray.Add(LPath);
+    LUnitObj.AddPair('modulePaths', LModulePathsArray);
+  end;
+  
+  // Add include paths if any exist for this unit
+  if FUnitIncludePaths.TryGetValue(AUnitInfo.Name, LIncludePaths) and (Length(LIncludePaths) > 0) then
+  begin
+    LIncludePathsArray := TJSONArray.Create;
+    for LPath in LIncludePaths do
+      LIncludePathsArray.Add(LPath);
+    LUnitObj.AddPair('includePaths', LIncludePathsArray);
+  end;
+  
+  // Add library paths if any exist for this unit
+  if FUnitLibraryPaths.TryGetValue(AUnitInfo.Name, LLibraryPaths) and (Length(LLibraryPaths) > 0) then
+  begin
+    LLibraryPathsArray := TJSONArray.Create;
+    for LPath in LLibraryPaths do
+      LLibraryPathsArray.Add(LPath);
+    LUnitObj.AddPair('libraryPaths', LLibraryPathsArray);
+  end;
   
   LUsedUnits := GetUsedUnits(AUnitInfo.SyntaxTree);
   try
@@ -273,6 +416,9 @@ var
 begin
   LWriter := TNPJSONWriter.Create(AIndexer);
   try
+    // Preprocess all units to collect their {$INCLUDE_HEADER} and {$LINK} directives
+    LWriter.PreprocessUnitsForHeaders();
+    
     LRootObj := TJSONObject.Create;
     try
       LUnitsArray := TJSONArray.Create;
@@ -320,19 +466,22 @@ var
 begin
   LDefinesList := TStringList.Create();
   try
-    // 1. Add DEBUG or RELEASE based on optimization mode
+    // 1. Always add NITROPASCAL define
+    LDefinesList.Add('NITROPASCAL');
+    
+    // 2. Add DEBUG or RELEASE based on optimization mode
     if ABuildSettings.Optimize = omDebug then
       LDefinesList.Add('DEBUG')
     else
       LDefinesList.Add('RELEASE');
     
-    // 2. Add CONSOLE_APP or GUI_APP based on app type
+    // 3. Add CONSOLE_APP or GUI_APP based on app type
     if ABuildSettings.AppType = atConsole then
       LDefinesList.Add('CONSOLE_APP')
     else
       LDefinesList.Add('GUI_APP');
     
-    // 3. Parse target triplet for platform defines
+    // 4. Parse target triplet for platform defines
     if (not ABuildSettings.Target.IsEmpty) and 
        (ABuildSettings.Target.ToLower <> 'native') then
     begin
@@ -397,6 +546,14 @@ function TNPPasToJSON.Parse(const AFilename: string;
   var AErrorManager: TNPErrorManager): Boolean;
 var
   LIndexer: TProjectIndexer;
+  LProblem: TProjectIndexer.TProblemInfo;
+  LDescription: string;
+  LParts: TArray<string>;
+  LLine: Integer;
+  LCol: Integer;
+  LErrorMessage: string;
+  LLoopIndex: Integer;
+  LColonPos: Integer;
 begin
   Result := False;
   FJSON := '';
@@ -429,6 +586,40 @@ begin
       // Parse the file directly from original location
       LIndexer.Index(AFilename);
       
+      // Check for parsing errors from DelphiAST
+      if LIndexer.Problems.Count > 0 then
+      begin
+        for LLoopIndex := 0 to LIndexer.Problems.Count - 1 do
+        begin
+          LProblem := LIndexer.Problems[LLoopIndex];
+          LDescription := LProblem.Description;
+          LLine := 0;
+          LCol := 0;
+          LErrorMessage := LDescription;
+          
+          // Parse "Line X, Column Y: message" format
+          LParts := LDescription.Split(['Line ', ', Column ', ': ']);
+          if Length(LParts) >= 3 then
+          begin
+            if TryStrToInt(LParts[1], LLine) and 
+               TryStrToInt(LParts[2], LCol) then
+            begin
+              // Extract the actual error message (everything after ": ")
+              LColonPos := Pos(': ', LDescription);
+              if LColonPos > 0 then
+                LErrorMessage := Copy(LDescription, LColonPos + 2, MaxInt)
+              else
+                LErrorMessage := LDescription;
+            end;
+          end;
+          
+          AErrorManager.AddError(NP_ERROR_COMPILATION, LLine, LCol, 
+            LProblem.FileName, LErrorMessage);
+        end;
+        Exit;  // Return False
+      end;
+      
+      { Convert to JSON }
       FJSON := TNPJSONWriter.ToJSON(LIndexer, FFormatted);
 
       Result := True;

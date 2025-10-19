@@ -11,9 +11,11 @@
 
 {$APPTYPE GUI}
 
+{$INCLUDE_HEADER 'windows.h'}
+
 program ProgramMessageBox;
 
-function MessageBoxW(hWnd: Cardinal; lpText: PChar; lpCaption: PChar; uType: Cardinal): Integer; 
+function MessageBoxW(hWnd: Cardinal; const lpText: PChar; const lpCaption: PChar; uType: Cardinal): Integer; 
   stdcall; external 'user32.dll';
 
 begin
