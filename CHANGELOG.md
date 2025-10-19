@@ -11,6 +11,135 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Stop tracking .pdf files** (2025-10-19 – jarroddavis68)
 
 
+### Removed
+- **Release v0.4.0: Real-World Usage** (2025-10-19 – jarroddavis68)
+  NitroPascal v0.4.0 delivers the features that matter for building real
+  applications in production: function pointers for callbacks, structured RTL
+  modules (Types, SysUtils, StrUtils, DateUtils), static library linking
+  (demonstrated with raylib), comprehensive benchmarking suite, and dramatically
+  expanded runtime capabilities.
+  KEY MILESTONE:
+  NitroPascal now demonstrates REAL-WORLD VIABILITY. Static link raylib for game
+  development. Compare performance against Delphi with included benchmarks.
+  Structure your code with standard Pascal RTL modules. Build production software
+  with a mature, organized runtime library.
+  FUNCTION POINTERS (PROCEDURAL TYPES):
+  - Procedural type declarations (type TCallback = procedure(X: Integer))
+  - Function variable assignments
+  - Callback patterns for event handling
+  - Higher-order functions and functional programming
+  - Framework integration hooks
+  - Plugin architectures
+  - Event-driven programming patterns
+  STRUCTURED RTL MODULES:
+  - System.Types - Base type declarations and utilities
+  - System.SysUtils - System utilities and conversions
+  - System.StrUtils - String manipulation utilities
+  - System.DateUtils - Date/time functions (foundation)
+  - Organized, discoverable API surface
+  - Standard Pascal module structure
+  - Clear separation of concerns
+  - Professional codebase organization
+  STATIC LIBRARY LINKING:
+  - Link against static libraries (.lib/.a files)
+  - Demonstrated with raylib game development library
+  - Zero-overhead integration with C/C++ libraries
+  - Single-executable deployment (no DLL dependencies)
+  - Complete control over dependencies
+  - Simplified distribution
+  ENHANCED STRING LIBRARY:
+  - StringOfChar(Ch, Count) - Create repeated character strings
+  - UniqueString(S) - Ensure unique string reference
+  - SetString(S, Buffer, Len) - Direct buffer to string
+  - Val(S, V, Code) - String to numeric with error code
+  - Str(X, S) - Numeric to string (legacy compatibility)
+  - UpCase(Ch) - Single character uppercase
+  - WideCharLen(S) - Wide string length
+  - WideCharToString(S) - Convert wide to string
+  - StringToWideChar(S, Buf, BufSize) - String to wide buffer
+  - WideCharToStrVar(S, Dest) - Wide to string variable
+  - Complete wide character support for Unicode
+  EXPANDED MATH LIBRARY:
+  - Logarithms: Ln(X), Log10(X), Log2(X), LogN(Base, X)
+  - Exponential: Exp(X), Power(Base, Exponent)
+  - Integer/fractional: Int(X), Frac(X)
+  - Hyperbolic trig: Sinh(X), Cosh(X), Tanh(X)
+  - Inverse hyperbolic: ArcSinh(X), ArcCosh(X), ArcTanh(X)
+  - Mathematical constant: Pi
+  - ArcTan2(Y, X) for proper angle calculations
+  - Scientific computing capabilities
+  - Complete mathematical toolkit
+  ENHANCED FILE I/O:
+  - Read(F, Var) - Read from text file to variable
+  - Eoln(F) - Test for end of line in text file
+  - SeekEof(F) - Skip whitespace, test for EOF
+  - SeekEoln(F) - Skip whitespace, test for EOL
+  - Flush(F) - Force write buffer to disk
+  - Truncate(F) - Truncate file at current position
+  - Erase(F) - Delete closed file
+  - Rename(F, NewName) - Rename closed file
+  - IOResult - Get last I/O error code
+  - Complete Delphi file I/O compatibility
+  ENHANCED MEMORY FUNCTIONS:
+  - AllocMem(Size) - Allocate zero-filled memory
+  - FillByte(Dest, Count, Value) - Fill byte array
+  - FillWord(Dest, Count, Value) - Fill word array
+  - FillDWord(Dest, Count, Value) - Fill dword array
+  - Efficient bulk memory operations
+  - Type-specific fill operations
+  ENHANCED ORDINAL FUNCTIONS:
+  - Odd(X) - Test if integer is odd
+  - Swap(X) - Swap byte order (endianness)
+  - Byte manipulation utilities
+  PLATFORM SERVICES:
+  - RunError(ErrorCode) - Terminate with error code
+  - Abort - Terminate with exception
+  - Enhanced program control
+  CODE GENERATION IMPROVEMENTS:
+  - Line number directives (#line) for debugging
+  - Source position tracking in generated code
+  - Better debuggability
+  - Improved error messages with source locations
+  COMPILER DIRECTIVES:
+  - {$include_header 'filename'} - Include C/C++ headers directly
+  - Seamless integration with native libraries
+  - Direct access to platform APIs
+  BENCHMARK SUITE:
+  - Comprehensive performance comparison: NitroPascal vs Delphi
+  - Real-world test scenarios
+  - Quantifiable performance metrics
+  - Optimization validation
+  - Demonstrates competitive performance
+  ENHANCED C++ RUNTIME:
+  - Expanded standard library wrappers
+  - More complete RTL implementation
+  - Better Delphi compatibility
+  - Optimized performance paths
+  BUILD SYSTEM ENHANCEMENTS:
+  - Static library linking support
+  - Improved dependency management
+  - Better library path resolution
+  - Cross-platform static linking
+  REAL-WORLD DEMONSTRATIONS:
+  - Raylib integration example (static linking)
+  - Game development capabilities
+  - High-performance graphics
+  - Professional library integration
+  - Production-ready examples
+  This release proves NitroPascal's real-world viability. With function pointers
+  for callbacks, structured RTL modules for organization, static linking for
+  deployment simplicity, and comprehensive benchmarks showing competitive
+  performance, you can confidently build production applications.
+  THE REAL-WORLD MILESTONE:
+  NitroPascal isn't just production-ready - it's production-proven. Static link
+  libraries like raylib. Write callbacks and event handlers with function
+  pointers. Structure your code with standard Pascal modules. Compare performance
+  directly against Delphi. Ship real applications with confidence.
+  Write once in pure Delphi. Link static libraries. Ship single executables. Run
+  everywhere.
+  Version: 0.4.0
+
+
 ## [0.3.0] - 2025-10-15
 
 ### Added
