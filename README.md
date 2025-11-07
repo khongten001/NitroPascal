@@ -1,3 +1,18 @@
+### ⚠️ Project Status Notice
+
+**Development of NitroPascal has officially transitioned to [JetPascal](https://github.com/tinyBigGAMES/JetPascal).**
+This repository is no longer actively maintained and will remain archived for reference purposes.
+
+JetPascal builds upon NitroPascal’s foundation with:
+
+- A more modular and efficient architecture
+- Enhanced compiler infrastructure and zig/c++ integration
+- Easier feature expansion (classes, advanced types, etc.)
+- Streamlined transpilation and build pipeline
+
+All future updates, releases, and community discussions will take place on the **JetPascal** repository.
+If you’re currently using NitroPascal, we encourage you to migrate to JetPascal for the latest features and support.
+
 ![NitroPascal](media/nitropascal.png)
 
 <div align="center">
